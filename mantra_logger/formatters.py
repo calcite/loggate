@@ -2,7 +2,7 @@ import json
 import logging
 
 
-class StdLogFormatter(logging.Formatter):
+class LogColorFormatter(logging.Formatter):
     """
     Logger for stdout/stderr
     """
@@ -35,10 +35,10 @@ class StdLogFormatter(logging.Formatter):
             msg = formatter.format(record)
         else:
             msg = super().format(record)
-        if record.tags:
-            # show tags
+        if record.meta:
+            # show meta
             try:
-                extra = json.dumps(record.tags)
+                extra = json.dumps(record.meta)
                 return f'{msg}\n\t\t\t\t{self.GRAY}{extra}{self.RESET}'
             finally:
                 pass

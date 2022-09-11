@@ -1,7 +1,4 @@
-from typing import Any
-from typing import Dict
-from typing import Optional
-from typing import Tuple
+from typing import Any, Dict, Optional, Tuple, List
 
 import requests
 
@@ -12,25 +9,30 @@ class LokiEmitterV1:
     see https://github.com/grafana/loki/blob/main/docs/sources/api/_index.md#push-log-entries-to-loki
     """
 
+    DEFAULT_TAGS = ['logger', 'level']
+
     level_tag = 'level'
     logger_tag = 'logger'
     timeout = 30            # seconds
     success_response_code = 204
 
-    def __init__(self, urls: [str], tags: Optional[dict] = None,
-                 auth: Optional[Tuple[str, str]] = None) -> None:
+    def __init__(self, urls: [str],
+                 meta: Optional[dict] = None,
+                 auth: Optional[Tuple[str, str]] = None,
+                 tags: Optional[List[str]] = None) -> None:
         """
         Loki Handler
         :param urls: str loki url (e.g. [http://127.0.0.1/loki/api/v1/push])
-        :param tags: dict tags that will be added to all records handled
+        :param meta: dict metadata that will be added to all records handled
         by this handler.
         :param auth: Touple[str, str] tuple with username and password.
         """
 
-        self.tags = tags or {}
+        self.meta = meta or {}
         self.url = urls[0]
         self.auth = auth
         self._session = None
+        self.tags = tags if tags else self.DEFAULT_TAGS
 
     def emit(self, record, line):
         """
@@ -54,7 +56,6 @@ class LokiEmitterV1:
         """Create HTTP session."""
         if self._session is None:
             self._session = requests.Session()
-            # self._session.headers['Content-Type'] = 'application/json'
             self._session.auth = self.auth or None
         return self._session
 
@@ -70,10 +71,11 @@ class LokiEmitterV1:
         :param record: LogRecord
         :return:  Dict[str, Any]
         """
-        tags = self.tags.copy()
-        tags[self.level_tag] = record.levelname.lower()
-        tags[self.logger_tag] = record.name
-        tags.update(getattr(record, "tags", {}))
+        meta = self.meta.copy()
+        meta[self.level_tag] = record.levelname.lower()
+        meta[self.logger_tag] = record.name
+        meta.update(getattr(record, "meta", {}))
 
-        return tags
+        return {key: val for key, val in meta.items()
+                if key in self.tags}
 

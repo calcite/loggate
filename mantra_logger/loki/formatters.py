@@ -7,6 +7,10 @@ class LokiLogFormatter(logging.Formatter):
     Loki formatter
     """
 
+    def __init__(self, *args, handler=None, **kwargs):
+        super(LokiLogFormatter, self).__init__(*args, **kwargs)
+        self.handler = handler
+
     def format(self, record: logging.LogRecord) -> str:
         res = {}
         if isinstance(record.msg, dict):
@@ -16,7 +20,9 @@ class LokiLogFormatter(logging.Formatter):
             # convert bytes to string
             record.msg = record.msg.decode('utf-8').strip()
         res['msg'] = record.getMessage()
-        # res.update(self.get_extra_attributes(record))
+        if self.handler:
+            res.update({key: val for key, val in record.meta.items()
+                       if key in self.handler.tags})
         if record.exc_info:
             if not record.exc_text:
                 record.exc_text = self.formatException(record.exc_info)

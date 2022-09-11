@@ -13,20 +13,30 @@ class LokiHandler(Handler):
     `Loki API <https://github.com/grafana/loki/blob/master/docs/api.md>`_
     """
 
-    def __init__(self, urls: [str], tags: dict = None, auth: (str, str) = None):
+    def __init__(self, urls: [str], meta: dict = None, auth: (str, str) = None,
+                 tags: list[str] = None):
         """
         Create new Loki logging handler.
 
         Arguments:
             urls: Endpoints used to send log entries to Loki
                   (e.g. [`https://my-loki-instance/loki/api/v1/push`]).
-            tags: Default tags added to every log record.
+            meta: Default metadata added to every log record.
             auth: Optional tuple with username and password for
                   basic HTTP authentication.
+            tags: The list of names metadata, which will be converted to
+                  loki tags.
 
         """
         super(LokiHandler, self).__init__()
-        self.emitter = LokiEmitterV1(urls, tags, auth)
+        self.emitter = LokiEmitterV1(urls, meta, auth, tags)
+
+    def setFormatter(self, fmt):
+        """
+        Set the formatter for this handler.
+        """
+        self.formatter = fmt
+        fmt.handler = self
 
     def handleError(self, record):
         """

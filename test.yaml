@@ -1,0 +1,37 @@
+profiles:
+  default:
+    filters:
+      warning:
+        class: mantra_logger.LogLevelFilter
+        level: WARNING
+
+    formatters:
+      colored:
+        class: mantra_logger.LogColorFormatter
+
+    handlers:
+      stdout:
+        class: logging.StreamHandler
+        stream: ext://sys.stdout
+        formatter: colored
+#          class: mantra_logger.LogColorFormatter
+#        level: DEBUG
+
+    loggers:
+        root:
+          handlers:
+            - stdout
+            - class: logging.StreamHandler
+              stream: ext://sys.stderr
+              formatter: colored
+              level: WARNING
+              filters:
+                - warning
+
+  debug:
+    inherited: default
+    loggers:
+        root:
+          level: DEBUG
+
+
