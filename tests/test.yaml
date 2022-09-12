@@ -1,0 +1,57 @@
+profiles:
+  default:
+    filters:
+      warning:
+        class: mantra_logger.LowerLogLevelFilter
+        level: WARNING
+
+    formatters:
+      colored:
+        class: mantra_logger.LogColorFormatter
+        fmt: "%(LEVEL_COLOR)s%(asctime)s\t [%(levelname)s] %(name)s:%(COLOR_RESET)s %(message)s"
+        COLOR_PING: "\x1b[1;35m"
+        COLOR_WARNING: '#COLOR_PING'
+      loki:
+        class: mantra_logger.loki.LokiLogFormatter
+
+    handlers:
+      stdout:
+        class: logging.StreamHandler
+        stream: ext://sys.stdout
+        formatter: colored
+        filters:
+          - warning
+      loki:
+        class: mantra_logger.loki.LokiQueueHandler
+        level: DEBUG
+        formatter: loki
+        strategy: fallback
+        timeout: 5
+        urls: "http://10.54.13.164:3100/loki/api/v1/push"
+#          - "http://192.168.66.252:3100/loki/api/v1/push"
+#          - "http://192.168.66.253:3100/loki/api/v1/push"
+        meta:
+          stage: dev
+          ip: 192.168.66.187
+
+
+    loggers:
+        root:
+          level: INFO
+          handlers:
+            - stdout
+            - class: logging.StreamHandler
+              stream: ext://sys.stderr
+              formatter: colored
+              level: WARNING
+            - loki
+        'urllib3.connectionpool':
+          level: WARNING
+
+  debug:
+    inherited: default
+    loggers:
+        root:
+          level: DEBUG
+
+

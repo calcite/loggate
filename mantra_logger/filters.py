@@ -3,7 +3,10 @@ import logging
 from mantra_logger.helper import get_level
 
 
-class LogLevelFilter(logging.Filter):
+class LowerLogLevelFilter(logging.Filter):
+    """
+    This filter accepts only logs with the declared or lower levels.
+    """
     def __init__(self, level):
         self.level = get_level(level)
 

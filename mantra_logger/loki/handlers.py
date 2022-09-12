@@ -2,8 +2,10 @@ from logging import Handler
 from logging.handlers import QueueHandler, QueueListener
 from queue import Queue
 
-
+from .formatters import LokiLogFormatter
 from .emitters import LokiEmitterV1
+
+_defaultFormatter = LokiLogFormatter()
 
 
 class LokiHandler(Handler):
@@ -13,30 +15,32 @@ class LokiHandler(Handler):
     `Loki API <https://github.com/grafana/loki/blob/master/docs/api.md>`_
     """
 
-    def __init__(self, urls: [str], meta: dict = None, auth: (str, str) = None,
-                 tags: list[str] = None):
+    DEFAULT_LOKI_TAGS = ['logger', 'level']
+    level_tag = 'level'
+    logger_tag = 'logger'
+
+    def __init__(self, urls: [str], strategy: str = None, meta: dict = None,
+                 auth: (str, str) = None, loki_tags: list[str] = None,
+                 timeout: int = None):
         """
         Create new Loki logging handler.
 
-        Arguments:
-            urls: Endpoints used to send log entries to Loki
+        :param urls: Endpoints used to send log entries to Loki
                   (e.g. [`https://my-loki-instance/loki/api/v1/push`]).
-            meta: Default metadata added to every log record.
-            auth: Optional tuple with username and password for
+        :param strategy: to choose loki server
+                  (e.g. 'all', 'random', 'fallback')
+        :param meta: Default metadata added to every log record.
+        :param auth: Optional tuple with username and password for
                   basic HTTP authentication.
-            tags: The list of names metadata, which will be converted to
+        :param loki_tags: The list of names metadata, which will be converted to
                   loki tags.
+        :param timeout: connection timeout to loki server
 
         """
         super(LokiHandler, self).__init__()
-        self.emitter = LokiEmitterV1(urls, meta, auth, tags)
-
-    def setFormatter(self, fmt):
-        """
-        Set the formatter for this handler.
-        """
-        self.formatter = fmt
-        fmt.handler = self
+        self.emitter = LokiEmitterV1(self, urls, strategy, auth, timeout)
+        self.meta = meta
+        self.loki_tags = loki_tags if loki_tags else self.DEFAULT_LOKI_TAGS
 
     def handleError(self, record):
         """
@@ -44,6 +48,12 @@ class LokiHandler(Handler):
         """
         self.emitter.close()
         super(LokiHandler, self).handleError(record)
+
+    def format(self, record):
+        fmt = self.formatter if self.formatter else _defaultFormatter
+        if isinstance(fmt, LokiLogFormatter):
+            return fmt.format(record, handler=self)
+        return fmt.format(record)
 
     def emit(self, record):
         """
@@ -73,3 +83,26 @@ class LokiQueueHandler(QueueHandler):
         self.listener = QueueListener(self.queue, self.handler)
         self.listener.start()
 
+    def close(self) -> None:
+        self.listener.stop()
+        self.handler.close()
+
+    def setFormatter(self, fmt):
+        self.handler.setFormatter(fmt)
+
+    def setLevel(self, level):
+        self.handler.setLevel(level)
+
+    def handleError(self, record):
+        self.handler.handleError(record)
+
+    def emit(self, record):
+        """
+        Emit a record.
+
+        Writes the LogRecord to the queue, preparing it for pickling first.
+        """
+        try:
+            self.enqueue(record)
+        except Exception:
+            self.handleError(record)
