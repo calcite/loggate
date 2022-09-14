@@ -126,7 +126,7 @@ def get_yaml(filename):
         return yaml.safe_load(fd)
     
 schema = get_yaml('test.yaml')
-setup_logging(profiles=schema.get('profiles'), default_profile='default')
+setup_logging(profiles=schema.get('profiles'))
 
 logger = get_logger('component')
 

@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 
+# from logging import _acquireLock as acquireLock, _releaseLock as releaseLock
 from mantra_logger.helper import get_level
 
 _srcfile = os.path.normcase(logging.addLevelName.__code__.co_filename)
@@ -37,8 +38,8 @@ DEFAULT_PROFILE = {
         },
         'loggers': {
             'root': {
-              'handlers': ['stdout', 'stderr'],
-              'level': logging.INFO
+                'handlers': ['stdout', 'stderr'],
+                'level': logging.INFO
             }
         }
     }
@@ -168,6 +169,7 @@ class Logger(logging.Logger):
                                  " \"%s\"\n" % self.name)
                 self.manager.emittedNoHandlerWarning = True
 
+
 class RootLogger(Logger):
     pass
 
@@ -213,11 +215,12 @@ class Manager(logging.Manager):
         for handler in self.__handlers.values():
             handler.flush()
             handler.close()
+            logging.removeHandler(handler)
         self.__handlers = {}
         self.loggerDict.clear()
         self.root = Logger.get_root(recreate=True)
 
-    def __get_handler_from_schema(self, attrs: dict):
+    def __create_handler_from_schema(self, attrs: dict):
         _class = attrs.pop('class', 'logging.Handler')
         _class = dynamic_import(_class)
         attr_level = attrs.pop('level', None)
@@ -262,11 +265,11 @@ class Manager(logging.Manager):
             logger.meta = meta
         for handler in attrs.get('handlers', []):
             if isinstance(handler, dict):
-                logger.addHandler(self.__get_handler_from_schema(handler))
+                logger.addHandler(self.__create_handler_from_schema(handler))
             else:
                 logger.addHandler(self.__handlers[handler])
 
-    def activate_profile(self, profile_name: str) -> None:
+    def activate_profile(self, profile_name: str, cleanup: bool = True) -> None:
         """
         Switch login profile
         :param profile_name: str - profile name
@@ -277,10 +280,10 @@ class Manager(logging.Manager):
                 f'Profile "{profile_name}" does not exist.')
         profile = copy.deepcopy(profile)
         if parent_profile_name := profile.get('inherited'):
-            if self.__current_profile_name != parent_profile_name:
-                self.__cleanup()
-            self.activate_profile(parent_profile_name)
+            self.activate_profile(parent_profile_name, False)
 
+        if cleanup:
+            self.__cleanup()
         # Filters
         for name, attrs in profile.get('filters', {}).items():
             _class = attrs.pop('class', 'logging.Filter')
@@ -295,7 +298,7 @@ class Manager(logging.Manager):
 
         # Handlers
         for name, attrs in profile.get('handlers', {}).items():
-            handler = self.__get_handler_from_schema(attrs)
+            handler = self.__create_handler_from_schema(attrs)
             handler.set_name(name)
             self.__handlers[name] = handler
 

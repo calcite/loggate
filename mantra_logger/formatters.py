@@ -97,5 +97,3 @@ class LogColorFormatter(logging.Formatter):
                 s = s + "\n"
             s = s + self.formatStack(record.stack_info)
         return s
-
-        return msg

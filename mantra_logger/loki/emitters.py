@@ -21,18 +21,19 @@ class LokiWrongDeployStrategy(LoggingException): pass       # noqa: E701
 class LokiEmitterV1:
     """
     Base Loki emitter class.
-    see https://github.com/grafana/loki/blob/main/docs/sources/api/_index.md#push-log-entries-to-loki
+    see https://github.com/grafana/loki/blob/main/docs/sources/api/_index.md#push-log-entries-to-loki       # noqa: E501
     """
 
     success_response_code = 204
 
-    def __init__(self, handler,  urls, strategy: str = None,
-                 auth: Optional[Tuple[str, str]] = None, timeout: int = None) \
-            -> None:
+    def __init__(self, handler, urls, strategy: str = None,
+                 auth: Optional[Tuple[str, str]] = None,
+                 timeout: int = None):
         """
         Loki Handler
-        :param urls: [str]|str loki url (e.g. [http://127.0.0.1/loki/api/v1/push])
-        :param auth: Touple[str, str] tuple with username and password.
+        :param urls: [str]|str loki url
+                     (e.g. [http://127.0.0.1/loki/api/v1/push])
+        :param auth: Tuple[str, str] tuple with username and password.
         """
         if isinstance(urls, str):
             urls = [urls]
@@ -69,7 +70,7 @@ class LokiEmitterV1:
             # print(f'{self.urls[ix]} - {resp.status_code}')
             if self.strategy != LOKI_DEPLOY_STRATEGY_ALL \
                     and resp.status_code == self.success_response_code:
-                        return
+                return
         if resp.status_code == self.success_response_code:
             return
         raise ValueError(
@@ -105,4 +106,3 @@ class LokiEmitterV1:
 
         return {key: val for key, val in meta.items()
                 if key in self.__handler.loki_tags}
-
