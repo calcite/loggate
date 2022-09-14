@@ -73,6 +73,8 @@ class LokiEmitterV1:
                 return
         if resp.status_code == self.success_response_code:
             return
+
+        # TODO: make recovery strategy
         raise ValueError(
             f"Unexpected Loki API response status code: {resp.status_code}",
             resp.content)

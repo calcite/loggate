@@ -4,7 +4,6 @@ import logging
 import os
 import sys
 
-# from logging import _acquireLock as acquireLock, _releaseLock as releaseLock
 from logate.helper import get_level
 
 _srcfile = os.path.normcase(logging.addLevelName.__code__.co_filename)
@@ -215,7 +214,6 @@ class Manager(logging.Manager):
         for handler in self.__handlers.values():
             handler.flush()
             handler.close()
-            logging.removeHandler(handler)
         self.__handlers = {}
         self.loggerDict.clear()
         self.root = Logger.get_root(recreate=True)
@@ -273,6 +271,7 @@ class Manager(logging.Manager):
         """
         Switch login profile
         :param profile_name: str - profile name
+        :param cleanup: bool - remove previous configuration
         """
         profile = self.__profiles.get(profile_name)
         if not profile:
@@ -342,7 +341,7 @@ def setup_logging(profiles: dict = None, default_profile: str = 'default',
         DEFAULT_PROFILE['default']['loggers']['root']['level'] = \
             get_level(level)
     Logger.manager.set_profiles(profiles if profiles else DEFAULT_PROFILE)
-    Logger.manager.activate_profile(default_profile)
+    Logger.manager.activate_profile(default_profile, cleanup=True)
 
 
 Logger.manager = Manager(Logger.get_root())

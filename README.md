@@ -61,9 +61,6 @@ profiles:
       colored:
         # This is stdout/sterr formatter. 
         class: logate.LogColorFormatter
-        fmt: "%(LEVEL_COLOR)s%(asctime)s\t [%(levelname)s] %(name)s:%(COLOR_RESET)s %(message)s"
-        COLOR_PING: "\x1b[1;35m"          # We can declare own color
-        COLOR_WARNING: '#COLOR_PING'      # and use it as color for warnings.
       loki:
         # This is formatter of loki messages.
         class: logate.loki.LokiLogFormatter
@@ -86,8 +83,6 @@ profiles:
         # This is a loki handler
         class: logate.loki.LokiQueueHandler        
         formatter: loki
-        strategy: random            # (options: all, fallback, random)
-        timeout: 5
         urls:
           - "http://loki1:3100/loki/api/v1/push"
           - "http://loki2:3100/loki/api/v1/push"
