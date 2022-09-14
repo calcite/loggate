@@ -1,6 +1,6 @@
 import logging
 
-from mantra_logger.helper import get_level
+from logate.helper import get_level
 
 
 class LowerLogLevelFilter(logging.Filter):

@@ -5,7 +5,7 @@ import os
 import sys
 
 # from logging import _acquireLock as acquireLock, _releaseLock as releaseLock
-from mantra_logger.helper import get_level
+from logate.helper import get_level
 
 _srcfile = os.path.normcase(logging.addLevelName.__code__.co_filename)
 
@@ -13,13 +13,13 @@ DEFAULT_PROFILE = {
     'default': {
         'filters': {
             'warning': {
-                'class': 'mantra_logger.LowerLogLevelFilter',
+                'class': 'logate.LowerLogLevelFilter',
                 'level': logging.WARNING
             }
         },
         'formatters': {
             'colored': {
-                'class': 'mantra_logger.LogColorFormatter'
+                'class': 'logate.LogColorFormatter'
             }
         },
         'handlers': {

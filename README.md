@@ -5,7 +5,7 @@ The complex logging system with support of log metadata and delivery to [Grafana
 One example is more than a thousand words.
 
 ```python
-from mantra_logger import setup_logging, get_logger
+from logate import setup_logging, get_logger
 
 setup_logging(level='DEBUG')
 logger = get_logger('component', meta={'version': '1.0.0'})
@@ -13,9 +13,9 @@ logger = get_logger('component', meta={'version': '1.0.0'})
 logger.debug('Loading resources for the component')
 logger.info('Initialize of the component')
 logger.warning('The component is not ready')
-logger.error('The component failed.', 
+logger.error('The component failed.',
              meta={'inputs': {'A': 1, 'B': 2}})
-logger.critical('The component unexpected failed.', 
+logger.critical('The component unexpected failed.',
                 meta={'attrs': {'A': 1, 'B': 2}})
 ```
 *Console output:*
@@ -24,8 +24,9 @@ logger.critical('The component unexpected failed.',
 
 
 ### Exceptions
+
 ```python
-from mantra_logger import setup_logging, get_logger
+from logate import setup_logging, get_logger
 
 setup_logging()
 logger = get_logger('component', meta={'version': '1.0.0'})
@@ -53,19 +54,19 @@ profiles:
       warning:                          
         # This is a filter for stdout logger, that enable only logs with level lower than WARNING. 
         # For logs with WARNING and higher we use stderr logger. 
-        class: mantra_logger.LowerLogLevelFilter
+        class: logate.LowerLogLevelFilter
         level: WARNING
 
     formatters:
       colored:
         # This is stdout/sterr formatter. 
-        class: mantra_logger.LogColorFormatter
+        class: logate.LogColorFormatter
         fmt: "%(LEVEL_COLOR)s%(asctime)s\t [%(levelname)s] %(name)s:%(COLOR_RESET)s %(message)s"
         COLOR_PING: "\x1b[1;35m"          # We can declare own color
         COLOR_WARNING: '#COLOR_PING'      # and use it as color for warnings.
       loki:
         # This is formatter of loki messages.
-        class: mantra_logger.loki.LokiLogFormatter
+        class: logate.loki.LokiLogFormatter
 
     handlers:
       stdout:
@@ -83,7 +84,7 @@ profiles:
         level: WARNING        
       loki:
         # This is a loki handler
-        class: mantra_logger.loki.LokiQueueHandler        
+        class: logate.loki.LokiQueueHandler        
         formatter: loki
         strategy: random            # (options: all, fallback, random)
         timeout: 5
@@ -92,7 +93,7 @@ profiles:
           - "http://loki2:3100/loki/api/v1/push"
           - "http://loki3:3100/loki/api/v1/push"
         meta:
-          # mantra_logger handlers accept metadata as well. Standard logging handlers do not!
+          # logate handlers accept metadata as well. Standard logging handlers do not!
           stage: dev
           ip: 192.168.1.10                
                   
@@ -116,15 +117,16 @@ profiles:
           level: DEBUG
 ```
 
-
 ```python
 import yaml
-from mantra_logger import setup_logging, get_logger
+from logate import setup_logging, get_logger
+
 
 def get_yaml(filename):
     with open(filename, 'r+') as fd:
         return yaml.safe_load(fd)
-    
+
+
 schema = get_yaml('test.yaml')
 setup_logging(profiles=schema.get('profiles'))
 

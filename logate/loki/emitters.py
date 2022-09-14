@@ -2,7 +2,7 @@ import random
 from typing import Any, Dict, Optional, Tuple
 import requests
 
-from mantra_logger.logger import LoggingException
+from logate.logger import LoggingException
 
 LOKI_DEPLOY_STRATEGY_ALL = 'all'
 LOKI_DEPLOY_STRATEGY_RANDOM = 'random'

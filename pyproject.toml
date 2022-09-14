@@ -1,13 +1,13 @@
 [tool.poetry]
-name = "mantra_logger"
+name = "logate"
 version = "1.0.0"
 license = "MIT"
 readme = "README.md"
 description = "The complex logging system."
 authors = ["Martin Korbel <mkorbel@alps.cz>"]
-homepage = "https://github.com/calcite/mantra_logger"
-repository = "https://github.com/calcite/mantra_logger"
-documentation = "https://github.com/calcite/mantra_logger"
+homepage = "https://github.com/calcite/logate"
+repository = "https://github.com/calcite/logate"
+documentation = "https://github.com/calcite/logate"
 
 keywords = ["log", "logging", "logger", "loki"]
 classifiers = [

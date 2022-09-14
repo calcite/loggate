@@ -2,17 +2,17 @@ profiles:
   default:
     filters:
       warning:
-        class: mantra_logger.LowerLogLevelFilter
+        class: logate.LowerLogLevelFilter
         level: WARNING
 
     formatters:
       colored:
-        class: mantra_logger.LogColorFormatter
+        class: logate.LogColorFormatter
         fmt: "%(LEVEL_COLOR)s%(asctime)s\t [%(levelname)s] %(name)s:%(COLOR_RESET)s %(message)s"
         COLOR_PING: "\x1b[1;35m"
         COLOR_WARNING: '#COLOR_PING'
       loki:
-        class: mantra_logger.loki.LokiLogFormatter
+        class: logate.loki.LokiLogFormatter
 
     handlers:
       stdout:
@@ -22,7 +22,7 @@ profiles:
         filters:
           - warning
       loki:
-        class: mantra_logger.loki.LokiQueueHandler
+        class: logate.loki.LokiQueueHandler
         level: DEBUG
         formatter: loki
         strategy: fallback
