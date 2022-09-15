@@ -215,7 +215,8 @@ class Manager(logging.Manager):
             handler.flush()
             handler.close()
         self.__handlers = {}
-        self.loggerDict.clear()
+        # TODO: We can not clean up loggers.
+        # self.loggerDict.clear()
         self.root = Logger.get_root(recreate=True)
 
     def __create_handler_from_schema(self, attrs: dict):

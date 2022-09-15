@@ -1,5 +1,11 @@
+import base64
+import json
 import random
+import ssl
+import urllib
 from typing import Any, Dict, Optional, Tuple
+from urllib.request import install_opener, build_opener
+
 import requests
 
 from loggate.logger import LoggingException
@@ -28,12 +34,16 @@ class LokiEmitterV1:
 
     def __init__(self, handler, urls, strategy: str = None,
                  auth: Optional[Tuple[str, str]] = None,
-                 timeout: int = None):
+                 timeout: int = None, ssl_verify=True):
         """
         Loki Handler
-        :param urls: [str]|str loki url
+        :param handler: LokiHandler
+        :param urls: [str]|str loki entrypoints
                      (e.g. [http://127.0.0.1/loki/api/v1/push])
-        :param auth: Tuple[str, str] tuple with username and password.
+        :param strategy: str ('random', 'fallback', 'all')
+        :param auth: (str, str) - username, password
+        :param timeout int - timeout in seconds
+        :param ssl_verify bool - check ssl server certificate
         """
         if isinstance(urls, str):
             urls = [urls]
@@ -48,9 +58,16 @@ class LokiEmitterV1:
         self.__url_indexes = list(range(len(urls)))
         if strategy == LOKI_DEPLOY_STRATEGY_RANDOM:
             random.shuffle(self.__url_indexes)
-        self.timeout = int(timeout) if timeout else 30
-        self.auth = auth
-        self._session = None
+        self.timeout = int(timeout) if timeout else 5
+        # auth
+        self.__auth = None
+        if auth:
+            self.__auth = base64.b64encode(f'{auth[0]}:{auth[1]}'
+                                           .encode('utf8')).decode()
+        self.ctx = ssl.create_default_context()
+        if not ssl_verify:
+            self.ctx.check_hostname = False
+            self.ctx.verify_mode = ssl.CERT_NONE
         self.__handler = handler
 
     def emit(self, record, line):
@@ -65,33 +82,34 @@ class LokiEmitterV1:
             }]
         }
         for ix in self.__url_indexes:
-            resp = self.session.post(self.urls[ix],
-                                     json=payload, timeout=self.timeout)
-            # print(f'{self.urls[ix]} - {resp.status_code}')
+            jsondata = json.dumps(payload).encode('utf-8')
+            request = urllib.request.Request(self.urls[ix],
+                                             data=jsondata,
+                                             method='POST')
+            request.add_header('Content-Type',
+                               'application/json; charset=utf-8')
+            request.add_header('Content-Length',
+                               len(jsondata))
+            if self.__auth:
+                request.add_header("Authorization", f"Basic %s" % self.__auth)
+            resp = urllib.request.urlopen(
+                request,
+                timeout=self.timeout,
+                context=self.ctx
+            )
             if self.strategy != LOKI_DEPLOY_STRATEGY_ALL \
-                    and resp.status_code == self.success_response_code:
+                    and resp.status == self.success_response_code:
                 return
-        if resp.status_code == self.success_response_code:
+        if resp.status == self.success_response_code:
             return
 
         # TODO: make recovery strategy
         raise ValueError(
-            f"Unexpected Loki API response status code: {resp.status_code}",
-            resp.content)
-
-    @property
-    def session(self) -> requests.Session:
-        """Create HTTP session."""
-        if self._session is None:
-            self._session = requests.Session()
-            self._session.auth = self.auth or None
-        return self._session
+            f"Unexpected Loki API response status code: {resp.status}")
 
     def close(self):
         """Close HTTP session."""
-        if self._session is not None:
-            self._session.close()
-            self._session = None
+        pass
 
     def build_tags(self, record) -> Dict[str, Any]:
         """

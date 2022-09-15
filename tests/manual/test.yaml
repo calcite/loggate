@@ -26,6 +26,7 @@ profiles:
         level: DEBUG
         formatter: loki
         timeout: 5
+#        auth: ['user', 'password']
         urls:
           - "http://192.168.66.251:3100/loki/api/v1/push"
           - "http://192.168.66.252:3100/loki/api/v1/push"

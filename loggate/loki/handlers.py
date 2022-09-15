@@ -21,7 +21,7 @@ class LokiHandler(Handler):
 
     def __init__(self, urls: [str], strategy: str = None, meta: dict = None,
                  auth: (str, str) = None, loki_tags: list[str] = None,
-                 timeout: int = None):
+                 timeout: int = None, ssl_verify=True):
         """
         Create new Loki logging handler.
 
@@ -38,7 +38,12 @@ class LokiHandler(Handler):
 
         """
         super(LokiHandler, self).__init__()
-        self.emitter = LokiEmitterV1(self, urls, strategy, auth, timeout)
+        self.emitter = LokiEmitterV1(self,
+                                     urls=urls,
+                                     strategy=strategy,
+                                     auth=auth,
+                                     timeout=timeout,
+                                     ssl_verify=ssl_verify)
         self.meta = meta
         self.loki_tags = loki_tags if loki_tags else self.DEFAULT_LOKI_TAGS
 
@@ -84,8 +89,9 @@ class LokiQueueHandler(QueueHandler):
         self.listener.start()
 
     def close(self) -> None:
-        self.listener.stop()
-        self.handler.close()
+        if hasattr(self, 'listener'):
+            self.listener.stop()
+            self.handler.close()
 
     def setFormatter(self, fmt):
         self.handler.setFormatter(fmt)

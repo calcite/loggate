@@ -20,16 +20,16 @@ setup_logging(profiles=schema.get('profiles'))
 
 # setup_logging(level='DEBUG')
 
-# Logger.manager.activate_profile('debug')
-
 
 # setup_logging(level='DEBUG')
 
 logger = get_logger('component', meta={'version': '1.0.0'})
+logger2 = get_logger('component.aaa', meta={'version': '1.0.0'})
 
-logger.debug('Loading resources for the component')
-logger.info('Initialize of the component')
-logger.warning('The component is not ready')
+
+# logger.debug('Loading resources for the component')
+logger2.info('Initialize of the component')
+# logger.warning('The component is not ready')
 # logger.error('The component failed.', meta={'inputs': {'A': 1, 'B': 2}})
 # logger.critical('The component unexpected failed.', meta={'attrs': {'A': 1, 'B': 2}})
 

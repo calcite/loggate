@@ -1,21 +1,26 @@
 import json
+from urllib.request import Request
 
 from loggate import setup_logging, get_logger
 
 
-def check_call(call, labels, msg, server='http://loki'):
-    _, args, kwargs = call
-    # check server
-    assert len(args) == 1,  f"Wrong number args params {args}"
-    assert args[0] == server, f"Wrong loki server {args[0]} != {server}"
+def check_call(request: Request, labels, msg, headers=None, url='http://loki'):
+    # check loki url address
+    assert request.full_url == request.full_url, \
+        f"Wrong loki url {request.full_url} != {url}"
+    data = json.loads(request.data)
     # check labels
-    assert 'json' in kwargs
-    assert 'streams' in kwargs['json']
-    assert 'stream' in kwargs['json']['streams'][0]
-    assert labels == kwargs['json']['streams'][0]['stream']
+    assert 'streams' in data
+    assert 'stream' in data['streams'][0]
+    assert labels == data['streams'][0]['stream']
+    # headers
+    if not headers:
+        headers = {'Content-type': 'application/json; charset=utf-8'}
+    for k, val in headers.items():
+        request.headers[k]
     # check message
-    assert len(kwargs['json']['streams'][0]['values']) > 0
-    _msg = kwargs['json']['streams'][0]['values'][0][1]
+    assert len(data['streams'][0]['values']) > 0
+    _msg = data['streams'][0]['values'][0][1]
     if isinstance(msg, dict):
         _msg = json.loads(_msg)
     assert msg == _msg
@@ -35,16 +40,16 @@ def test_simple(make_profile, session):
     logger.critical('Critical')
 
     session.closed.wait(.1)
-    check_call(session.calls.pop(0),
+    check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'debug'},
                {"msg": "Debug"})
-    check_call(session.calls.pop(0),
+    check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'warning'},
                {"msg": "Warning"})
-    check_call(session.calls.pop(0),
+    check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'error'},
                {"msg": "Error"})
-    check_call(session.calls.pop(0),
+    check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'critical'},
                {"msg": "Critical"})
 
@@ -83,14 +88,14 @@ def test_metadata(make_profile, session):
                           'overwriteH': '111'})
 
     session.closed.wait(.1)
-    check_call(session.calls.pop(0),
+    check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'debug', 'meta': 'DEF'},
                {"msg": "Debug",
                 'handler_meta': '000',
                 'logger_meta': 'ABC',
                 'overwriteH': '111',
                 'overwriteL': 'Y'})
-    check_call(session.calls.pop(0),
+    check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'warning', 'meta': 'GHI'},
                {"msg": "Warning",
                 'handler_meta': '000',
@@ -98,7 +103,7 @@ def test_metadata(make_profile, session):
                 'overwriteH': '111',
                 'overwriteL': 'Y'
                 })
-    check_call(session.calls.pop(0),
+    check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'error', 'meta': 'JKL'},
                {"msg": "Error",
                 'handler_meta': '000',
@@ -106,7 +111,7 @@ def test_metadata(make_profile, session):
                 'overwriteH': '111',
                 'overwriteL': 'Y'
                 })
-    check_call(session.calls.pop(0),
+    check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'critical', 'meta': 'MNO'},
                {"msg": "Critical",
                 'handler_meta': '000',
@@ -130,18 +135,18 @@ def test_loki_all_strategy(make_profile, session):
     logger.critical('Critical')
 
     session.closed.wait(.1)
-    check_call(session.calls.pop(0),
+    check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'critical'},
                {"msg": "Critical"},
-               server='http://loki1')
-    check_call(session.calls.pop(0),
+               url='http://loki1')
+    check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'critical'},
                {"msg": "Critical"},
-               server='http://loki2')
-    check_call(session.calls.pop(0),
+               url='http://loki2')
+    check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'critical'},
                {"msg": "Critical"},
-               server='http://loki3')
+               url='http://loki3')
 
 
 def test_loki_fallback_strategy(make_profile, session, capsys):
@@ -152,6 +157,7 @@ def test_loki_fallback_strategy(make_profile, session, capsys):
     servers = ['http://loki1', 'http://loki2', 'http://loki3']
     profiles = make_profile({
         'default.handlers.loki.strategy': 'fallback',
+        'default.handlers.loki.timeout': 5,
         'default.handlers.loki.urls': servers
     })
     session.response_code = [400, 400, 400]
@@ -160,17 +166,37 @@ def test_loki_fallback_strategy(make_profile, session, capsys):
     logger.critical('Critical')
 
     session.closed.wait(.1)
-    check_call(session.calls.pop(0),
+    assert  session.requests[0].kwargs['timeout'] == 5
+    check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'critical'},
                {"msg": "Critical"},
-               server='http://loki1')
-    check_call(session.calls.pop(0),
+               url='http://loki1')
+    check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'critical'},
                {"msg": "Critical"},
-               server='http://loki2')
-    check_call(session.calls.pop(0),
+               url='http://loki2')
+    check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'critical'},
                {"msg": "Critical"},
-               server='http://loki3')
+               url='http://loki3')
     captured = capsys.readouterr()
     assert 'Unexpected Loki API response status code: 400' in captured.err
+
+
+def test_loki_with_auth(make_profile, session, capsys):
+    """
+    Test strategy fallback. The log message is send to first server,
+    if it failed we try to send it to others.
+    """
+    profiles = make_profile({
+        'default.handlers.loki.auth': ['username', 'password']
+    })
+    setup_logging(profiles=profiles)
+    logger = get_logger('component')
+    logger.critical('Critical')
+
+    session.closed.wait(.1)
+
+    check_call(session.requests.pop(0),
+               {'logger': 'component', 'level': 'critical'},
+               {"msg": "Critical"})

@@ -1,7 +1,7 @@
 import threading
+import urllib
 
 import pytest
-import requests
 
 
 @pytest.fixture(autouse=True)
@@ -53,27 +53,24 @@ def make_profile():
 class MockSession:
 
     class MockResponse:
-        def __init__(self, status_code, content='XXX'):
-            self.status_code = status_code
-            self.content = content
+        def __init__(self, status):
+            self.status = status
 
     def __init__(self, *args, **kwargs):
-        self.calls = []
+        self.requests = []
         self.closed = threading.Event()
         self.response_code = 204
 
-    def post(self, *args, **kwargs):
-        self.calls.append(('post', args, kwargs))
+    def post(self, request, **kwargs):
+        request.kwargs = kwargs
+        self.requests.append(request)
         if isinstance(self.response_code, list):
             return MockSession.MockResponse(self.response_code.pop(0))
         return MockSession.MockResponse(self.response_code)
-
-    def close(self):
-        self.closed.clear()
 
 
 @pytest.fixture
 def session(monkeypatch):
     _session = MockSession()
-    monkeypatch.setitem(requests.__dict__, 'Session', lambda: _session)
+    monkeypatch.setattr(urllib.request, 'urlopen', _session.post)
     return _session
