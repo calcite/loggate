@@ -25,11 +25,11 @@ profiles:
         class: loggate.loki.LokiQueueHandler
         level: DEBUG
         formatter: loki
-        strategy: fallback
         timeout: 5
-        urls: "http://10.54.13.164:3100/loki/api/v1/push"
-#          - "http://192.168.66.252:3100/loki/api/v1/push"
-#          - "http://192.168.66.253:3100/loki/api/v1/push"
+        urls:
+          - "http://192.168.66.251:3100/loki/api/v1/push"
+          - "http://192.168.66.252:3100/loki/api/v1/push"
+          - "http://192.168.66.253:3100/loki/api/v1/push"
         meta:
           stage: dev
           ip: 192.168.66.187
