@@ -17,12 +17,12 @@ def make_profile():
             'default': {
                 'formatters': {
                     'loki': {
-                        'class': 'logate.loki.LokiLogFormatter'
+                        'class': 'loggate.loki.LokiLogFormatter'
                     }
                 },
                 'handlers': {
                     'loki': {
-                        'class': 'logate.loki.LokiQueueHandler',
+                        'class': 'loggate.loki.LokiQueueHandler',
                         'formatter': 'loki',
                         'urls': ['http://loki'],
                     }

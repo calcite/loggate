@@ -1,11 +1,11 @@
-# Mantra Logging
+# Loggate
 The complex logging system with support of log metadata and delivery to [Grafana Loki](https://grafana.com/oss/loki/).
 
 ## Simple stdout/stderr colorized output
 One example is more than a thousand words.
 
 ```python
-from logate import setup_logging, get_logger
+from loggate import setup_logging, get_logger
 
 setup_logging(level='DEBUG')
 logger = get_logger('component', meta={'version': '1.0.0'})
@@ -26,7 +26,7 @@ logger.critical('The component unexpected failed.',
 ### Exceptions
 
 ```python
-from logate import setup_logging, get_logger
+from loggate import setup_logging, get_logger
 
 setup_logging()
 logger = get_logger('component', meta={'version': '1.0.0'})
@@ -42,7 +42,7 @@ except Exception as ex:
 
 
 ## Advanced configuration
-The Mantra Logging supports a declarative configuration alike as [logging.config](https://docs.python.org/3/library/logging.config.html).
+The Loggate supports a declarative configuration alike as [logging.config](https://docs.python.org/3/library/logging.config.html).
 But this support profiles as well. It's mean we can declare many logging profiles and switch between them. Default profile is called `default`.
 
 We can use yaml file as configuration file (see next):
@@ -54,16 +54,16 @@ profiles:
       warning:                          
         # This is a filter for stdout logger, that enable only logs with level lower than WARNING. 
         # For logs with WARNING and higher we use stderr logger. 
-        class: logate.LowerLogLevelFilter
+        class: loggate.LowerLogLevelFilter
         level: WARNING
 
     formatters:
       colored:
         # This is stdout/sterr formatter. 
-        class: logate.LogColorFormatter
+        class: loggate.LogColorFormatter
       loki:
         # This is formatter of loki messages.
-        class: logate.loki.LokiLogFormatter
+        class: loggate.loki.LokiLogFormatter
 
     handlers:
       stdout:
@@ -81,14 +81,14 @@ profiles:
         level: WARNING        
       loki:
         # This is a loki handler
-        class: logate.loki.LokiQueueHandler        
+        class: loggate.loki.LokiQueueHandler        
         formatter: loki
         urls:
           - "http://loki1:3100/loki/api/v1/push"
           - "http://loki2:3100/loki/api/v1/push"
           - "http://loki3:3100/loki/api/v1/push"
         meta:
-          # logate handlers accept metadata as well. Standard logging handlers do not!
+          # loggate handlers accept metadata as well. Standard logging handlers do not!
           stage: dev
           ip: 192.168.1.10                
                   
@@ -114,7 +114,7 @@ profiles:
 
 ```python
 import yaml
-from logate import setup_logging, get_logger
+from loggate import setup_logging, get_logger
 
 
 def get_yaml(filename):

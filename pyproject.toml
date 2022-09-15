@@ -1,13 +1,13 @@
 [tool.poetry]
-name = "logate"
+name = "loggate"
 version = "1.0.0"
 license = "MIT"
 readme = "README.md"
 description = "The complex logging system."
 authors = ["Martin Korbel <mkorbel@alps.cz>"]
-homepage = "https://github.com/calcite/logate"
-repository = "https://github.com/calcite/logate"
-documentation = "https://github.com/calcite/logate"
+homepage = "https://github.com/calcite/loggate"
+repository = "https://github.com/calcite/loggate"
+documentation = "https://github.com/calcite/loggate"
 
 keywords = ["log", "logging", "logger", "loki"]
 classifiers = [

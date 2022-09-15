@@ -1,6 +1,6 @@
 import json
 
-from logate import setup_logging, get_logger
+from loggate import setup_logging, get_logger
 
 
 def check_call(call, labels, msg, server='http://loki'):

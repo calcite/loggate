@@ -6,7 +6,7 @@ import yaml
 sys.path.insert(0,
                 os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from logate import setup_logging, get_logger, Logger
+from loggate import setup_logging, get_logger, Logger
 
 
 def get_yaml(filename):

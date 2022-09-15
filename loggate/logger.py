@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 
-from logate.helper import get_level
+from loggate.helper import get_level
 
 _srcfile = os.path.normcase(logging.addLevelName.__code__.co_filename)
 
@@ -12,13 +12,13 @@ DEFAULT_PROFILE = {
     'default': {
         'filters': {
             'warning': {
-                'class': 'logate.LowerLogLevelFilter',
+                'class': 'loggate.LowerLogLevelFilter',
                 'level': logging.WARNING
             }
         },
         'formatters': {
             'colored': {
-                'class': 'logate.LogColorFormatter'
+                'class': 'loggate.LogColorFormatter'
             }
         },
         'handlers': {
