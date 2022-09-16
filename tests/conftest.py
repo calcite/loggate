@@ -4,12 +4,6 @@ import urllib
 import pytest
 
 
-@pytest.fixture(autouse=True)
-def no_requests(monkeypatch):
-    """Remove requests.sessions.Session.request for all tests."""
-    monkeypatch.delattr("requests.sessions.Session.request")
-
-
 @pytest.fixture
 def make_profile():
     def _make_profile(update: dict = None):
