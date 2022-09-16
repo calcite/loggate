@@ -125,7 +125,11 @@ class Logger(logging.Logger):
             # exception on some versions of IronPython. We trap it here so that
             # IronPython can use logging.
             try:
-                fn, lno, func, sinfo = self.findCaller(stack_info, stacklevel)
+                if sys.version_info.minor < 8:
+                    fn, lno, func, sinfo = self.findCaller(stack_info)
+                else:
+                    fn, lno, func, sinfo = self.findCaller(stack_info,
+                                                           stacklevel)
             except ValueError:  # pragma: no cover
                 fn, lno, func = "(unknown file)", 0, "(unknown function)"
         else:  # pragma: no cover
@@ -262,7 +266,8 @@ class Manager(logging.Manager):
             logger.disabled = True
         if not attrs.get('propagate', True):
             logger.propagate = False
-        if meta := attrs.get('meta'):
+        meta = attrs.get('meta')
+        if meta:
             logger.meta = meta
         for handler in attrs.get('handlers', []):
             if isinstance(handler, dict):
@@ -281,7 +286,8 @@ class Manager(logging.Manager):
             raise LoggingProfileDoesNotExist(
                 f'Profile "{profile_name}" does not exist.')
         profile = copy.deepcopy(profile)
-        if parent_profile_name := profile.get('inherited'):
+        parent_profile_name = profile.get('inherited')
+        if parent_profile_name:
             self.activate_profile(parent_profile_name, False)
 
         if cleanup:

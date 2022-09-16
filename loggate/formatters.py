@@ -1,4 +1,5 @@
 import logging
+import sys
 
 
 class LogColorFormatter(logging.Formatter):
@@ -49,7 +50,11 @@ class LogColorFormatter(logging.Formatter):
         if not fmt:
             fmt = "%(LEVEL_COLOR)s%(asctime)s\t [%(levelname)s] " \
                   "%(name)s:%(COLOR_RESET)s %(message)s"
-        super(LogColorFormatter, self).__init__(fmt, datefmt, style, validate)
+        if sys.version_info.minor < 8:
+            super(LogColorFormatter, self).__init__(fmt, datefmt, style)
+        else:
+            super(LogColorFormatter, self).__init__(fmt, datefmt, style,
+                                                    validate)
         if 'TRACEBACK_INDENTATION' in kwargs:
             self.TRACEBACK_INDENTATION = kwargs.get('TRACEBACK_INDENTATION')
         if 'METADATA_INDENTATION' in kwargs:

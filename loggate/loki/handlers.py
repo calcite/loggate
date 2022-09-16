@@ -20,8 +20,8 @@ class LokiHandler(Handler):
     logger_tag = 'logger'
 
     def __init__(self, urls: [str], strategy: str = None, meta: dict = None,
-                 auth: (str, str) = None, loki_tags: list[str] = None,
-                 timeout: int = None, ssl_verify=True):
+                 auth=None, loki_tags=None,
+                 timeout=None, ssl_verify=True):
         """
         Create new Loki logging handler.
 

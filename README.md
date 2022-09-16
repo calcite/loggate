@@ -1,5 +1,7 @@
 # Loggate
-[![PyPI version](https://badge.fury.io/py/loggate.svg)](https://badge.fury.io/py/loggate)
+[![PyPI](https://img.shields.io/pypi/v/loggate?color=green&style=plastic)](https://pypi.org/project/loggate/)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/loggate?style=plastic)
+![License](https://img.shields.io/github/license/calcite/loggate?style=plastic)
 
 The complex logging system with support of log metadata and delivery to [Grafana Loki](https://grafana.com/oss/loki/).
 
