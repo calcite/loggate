@@ -4,14 +4,18 @@ name: Release
 
 # Controls when the workflow will run
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  workflow_run:
+    branches: ["master"]
+    types: [workflow_dispatch]
+#  push:
+#    tags:
+#      - 'v*.*.*'
 
 jobs:
 
   build:
     runs-on: ubuntu-latest
+    if: $GITHUB_REF == 'master'
     steps:
       - name: Setup Python
         uses: actions/setup-python@v2
@@ -29,7 +33,9 @@ jobs:
 
       - name: Update version
         shell: bash
-        run: poetry version "${GITHUB_REF##*/v}"
+        run: |
+          poetry version minor
+          git tag "v$(poetry version -s )"
 
       - name: Publish to PyPI
         shell: bash
@@ -39,9 +45,11 @@ jobs:
          poetry config http-basic.pypi "__token__" "$POETRY_PYPI_TOKEN_PYPI"
          poetry publish --build
 
-      - name: push
-        uses: actions-x/commit@v2
+      - name: Commit & Push changes
+        uses: Andro999b/push@v1.3
         with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           files: pyproject.toml
-          force: true
+          message: 'bump version'
+          tags: True
 

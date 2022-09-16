@@ -1,4 +1,6 @@
 # Loggate
+[![PyPI version](https://badge.fury.io/py/loggate.svg)](https://badge.fury.io/py/loggate)
+
 The complex logging system with support of log metadata and delivery to [Grafana Loki](https://grafana.com/oss/loki/).
 
 ## Simple stdout/stderr colorized output
