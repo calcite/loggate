@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "loggate"
+version = "1.0.0"
+license = "MIT"
+readme = "README.md"
+description = "The complex logging system."
+authors = ["Martin Korbel <mkorbel@alps.cz>"]
+homepage = "https://github.com/calcite/loggate"
+repository = "https://github.com/calcite/loggate"
+documentation = "https://github.com/calcite/loggate"
+
+keywords = ["log", "logging", "logger", "loki"]
+classifiers = [
+    "Topic :: System :: Networking",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+PyYAML = "^5.4.1 || ^6.0"
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests"
+]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

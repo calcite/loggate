@@ -1,0 +1,48 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Release
+
+# Controls when the workflow will run
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+
+  build:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - uses: actions/checkout@master
+
+      - name: Install poetry
+        run: pip install poetry
+
+      - name: Configure poetry
+        shell: bash
+        run: poetry config virtualenvs.in-project true
+
+      - name: Update version
+        shell: bash
+        run: poetry version "${GITHUB_REF##*/v}"
+
+      - name: Publish to PyPI
+        shell: bash
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
+        run: |
+         poetry config http-basic.pypi "__token__" "$POETRY_PYPI_TOKEN_PYPI"
+         poetry publish --build
+
+      - name: push
+        uses: actions-x/commit@v2
+        with:
+          files: pyproject.toml
+          force: true
+

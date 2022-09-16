@@ -1,0 +1,11 @@
+[flake8]
+max-line-length = 80
+ignore =
+    E701,
+exclude =
+    .git,
+    .venv,
+    .pytest_cache,
+    __pychache__,
+    tmp
+    */__init__.py
