@@ -24,7 +24,7 @@ logger.critical('The component unexpected failed.',
 ```
 *Console output:*
 
-![Console output](img/console.png)
+![Console output](https://github.com/calcite/loggate/raw/master/img/console.png)
 
 
 ### Exceptions
@@ -42,7 +42,7 @@ except Exception as ex:
 ```
 *Console output:*
 
-![Console output](img/exception.png)
+![Console output](https://github.com/calcite/loggate/raw/master/img/exception.png)
 
 
 ## Advanced configuration
@@ -132,7 +132,7 @@ The console output is the same as above, but now we send logs to Loki as well.
 
 *Loki output:*
 
-![loki output](img/loki1.png)
+![loki output](https://github.com/calcite/loggate/raw/master/img/loki1.png)
 
 
 
