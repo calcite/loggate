@@ -215,8 +215,10 @@ class Manager(logging.Manager):
             handler.flush()
             handler.close()
         self.__handlers = {}
-        # TODO: We can not clean up loggers.
-        # self.loggerDict.clear()
+        # TODO: This is not a nice solution, because
+        #       when a user gets a logger instance before he does
+        #       a setup_logging, this unjoin the logger from logging hierarchy.
+        self.loggerDict.clear()
         self.root = Logger.get_root(recreate=True)
 
     def __create_handler_from_schema(self, attrs: dict):

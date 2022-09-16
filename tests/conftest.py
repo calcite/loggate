@@ -61,7 +61,7 @@ class MockSession:
         self.closed = threading.Event()
         self.response_code = 204
 
-    def post(self, request, **kwargs):
+    def send(self, request, **kwargs):
         request.kwargs = kwargs
         self.requests.append(request)
         if isinstance(self.response_code, list):
@@ -72,5 +72,5 @@ class MockSession:
 @pytest.fixture
 def session(monkeypatch):
     _session = MockSession()
-    monkeypatch.setattr(urllib.request, 'urlopen', _session.post)
+    monkeypatch.setattr(urllib.request, 'urlopen', _session.send)
     return _session
