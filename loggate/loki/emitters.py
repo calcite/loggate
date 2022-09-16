@@ -2,11 +2,8 @@ import base64
 import json
 import random
 import ssl
-import urllib
+import urllib.request
 from typing import Any, Dict, Optional, Tuple
-from urllib.request import install_opener, build_opener
-
-import requests
 
 from loggate.logger import LoggingException
 
@@ -91,7 +88,7 @@ class LokiEmitterV1:
             request.add_header('Content-Length',
                                len(jsondata))
             if self.__auth:
-                request.add_header("Authorization", f"Basic %s" % self.__auth)
+                request.add_header("Authorization", "Basic %s" % self.__auth)
             resp = urllib.request.urlopen(
                 request,
                 timeout=self.timeout,

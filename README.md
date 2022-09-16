@@ -136,7 +136,7 @@ The console output is the same as above, but now we send logs to Loki as well.
 ## Methods
 - `get_logger`
   - `name` - Return logger for this name. Empty name returns root logger.
-  - `meta` - Metadata (dict), which are sent only by this logger and it's children.
+  - `meta` - Metadata (dict), which are sent only by this logger.
 
 - `getLogger` - only alias for `get_logger`
 - `setup_logging` - init setup of application logging.

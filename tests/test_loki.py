@@ -72,8 +72,7 @@ def test_metadata(make_profile, session):
     logger.debug('Debug',
                  meta={'meta': 'DEF',
                        'overwriteL': 'Y',
-                       'overwriteH': '111'
-                })
+                       'overwriteH': '111'})
     logger.warning('Warning',
                    meta={'meta': 'GHI',
                          'overwriteL': 'Y',
@@ -166,7 +165,7 @@ def test_loki_fallback_strategy(make_profile, session, capsys):
     logger.critical('Critical')
 
     session.closed.wait(.1)
-    assert  session.requests[0].kwargs['timeout'] == 5
+    assert session.requests[0].kwargs['timeout'] == 5
     check_call(session.requests.pop(0),
                {'logger': 'component', 'level': 'critical'},
                {"msg": "Critical"},
