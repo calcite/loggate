@@ -136,7 +136,7 @@ The console output is the same as above, but now we send logs to Loki as well.
 
 
 
-# Configuration description
+# Description
 ## Methods
 - `get_logger`
   - `name` - Return logger for this name. Empty name returns root logger.
@@ -154,7 +154,7 @@ This filters out all logs which are higher than `level`.
 - `level` - log level
 
 ## Formatters
-## Class `loggate.LogColorFormatter`
+### Class `loggate.LogColorFormatter`
 Colorized formatter for stdout/stderr.
 - `fmt` - message format (default: `%(LEVEL_COLOR)s%(asctime)s\t [%(levelname)s] %(name)s:%(COLOR_RESET)s %(message)s`)
 - `datefmt` - datetime format (default: `%Y-%m-%d %H:%M:%S`)
@@ -167,12 +167,12 @@ Colorized formatter for stdout/stderr.
 - `COLOR_TRACEBACK` - set color of tracebacks
 - `COLOR_...` - set custom color
 
-## Class `loggate.loki.LokiLogFormatter`
+### Class `loggate.loki.LokiLogFormatter`
 This is special loki formatter, this converts log records to jsons.
 
 
 ## Handlers
-## Class `loggate.loki.LokiQueueHandler`
+### Class `loggate.loki.LokiQueueHandler`
 This handler send log records to Loki server.
 - `level` - This handler sends only log records with log level equal or higher than this (default: all = `logging.NOTSET`).
 - `urls` - List of loki entrypoints.
