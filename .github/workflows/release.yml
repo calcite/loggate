@@ -13,7 +13,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    if: $GITHUB_REF == 'master'
+    if: github.ref_name == 'master'
     steps:
       - name: Setup Python
         uses: actions/setup-python@v2
