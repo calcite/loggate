@@ -349,6 +349,8 @@ def setup_logging(profiles: dict = None, default_profile: str = 'default',
     if not profiles and level:
         DEFAULT_PROFILE['default']['loggers']['root']['level'] = \
             get_level(level)
+    if isinstance(profiles, dict) and 'profiles' in profiles:
+        profiles = profiles.get('profiles')
     Logger.manager.set_profiles(profiles if profiles else DEFAULT_PROFILE)
     Logger.manager.activate_profile(default_profile, cleanup=True)
 

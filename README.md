@@ -85,7 +85,7 @@ profiles:
         level: WARNING        
       loki:
         # This is a loki handler
-        class: loggate.loki.LokiQueueHandler        
+        class: loggate.loki.LokiQueueHandler  # for asyncio use loggate.loki.LokiHandler       
         formatter: loki
         urls:
           - "http://loki1:3100/loki/api/v1/push"

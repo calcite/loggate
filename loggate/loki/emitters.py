@@ -73,9 +73,9 @@ class LokiEmitterV1:
         :param record: LogRecord
         """
         payload = {
-            "streams": [{
-                "stream": self.build_tags(record),
-                "values": [(int(record.created * 1e9), line)]
+            'streams': [{
+                'stream': self.build_tags(record),
+                'values': [(str(int(record.created * 1e9)), line)]
             }]
         }
         for ix in self.__url_indexes:
@@ -85,24 +85,27 @@ class LokiEmitterV1:
                                              method='POST')
             request.add_header('Content-Type',
                                'application/json; charset=utf-8')
-            request.add_header('Content-Length',
-                               len(jsondata))
+            request.add_header('Content-Length', len(jsondata))
             if self.__auth:
                 request.add_header("Authorization", "Basic %s" % self.__auth)
-            resp = urllib.request.urlopen(
-                request,
-                timeout=self.timeout,
-                context=self.ctx
-            )
+            try:
+                resp = urllib.request.urlopen(
+                    request,
+                    timeout=self.timeout,
+                    context=self.ctx
+                )
+            except urllib.error.HTTPError as ex:
+                resp = ex
+                emsg = resp.read().decode()
             if self.strategy != LOKI_DEPLOY_STRATEGY_ALL \
                     and resp.status == self.success_response_code:
                 return
         if resp.status == self.success_response_code:
             return
-
         # TODO: make recovery strategy
         raise ValueError(
-            f"Unexpected Loki API response status code: {resp.status}")
+            f"Unexpected Loki API response status code: "
+            f"{resp.status} \"{emsg}\"")
 
     def close(self):
         """Close HTTP session."""

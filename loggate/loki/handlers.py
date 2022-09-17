@@ -1,3 +1,5 @@
+import threading
+from asyncio import _get_running_loop, get_event_loop
 from logging import Handler
 from logging.handlers import QueueHandler, QueueListener
 from queue import Queue
@@ -68,8 +70,8 @@ class LokiHandler(Handler):
         # noinspection PyBroadException
         try:
             self.emitter.emit(record, self.format(record))
-        except Exception:
-            self.handleError(record)
+        except Exception as ex:
+            self.handleError(ex)
 
 
 class LokiQueueHandler(QueueHandler):
