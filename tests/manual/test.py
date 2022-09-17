@@ -18,7 +18,7 @@ def get_yaml(filename):
 schema = get_yaml('test.yaml')
 setup_logging(profiles=schema.get('profiles'))
 
-logger = get_logger('component') #, meta={'version': '1.0.0'})
+logger = get_logger('component', meta={'version': '1.0.0'})
 
 
 # logger.debug('Loading resources for the component')

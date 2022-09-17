@@ -358,3 +358,4 @@ def setup_logging(profiles: dict = None, default_profile: str = 'default',
 Logger.manager = Manager(Logger.get_root())
 Logger.manager.setLoggerClass(Logger)
 Logger.manager.setLogRecordFactory(LogRecord)
+logging.Logger.manager = Logger.manager
