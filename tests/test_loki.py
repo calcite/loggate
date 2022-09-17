@@ -179,7 +179,7 @@ def test_loki_fallback_strategy(make_profile, session, capsys):
                {"msg": "Critical"},
                url='http://loki3')
     captured = capsys.readouterr()
-    assert 'Unexpected Loki API response status code: 400' in captured.err
+    assert '--- Logging error ---' in captured.err
 
 
 def test_loki_with_auth(make_profile, session, capsys):
