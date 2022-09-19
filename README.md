@@ -85,7 +85,7 @@ profiles:
         level: WARNING        
       loki:
         # This is a loki handler
-        class: loggate.loki.LokiQueueHandler  # for asyncio use loggate.loki.LokiHandler       
+        class: loggate.loki.LokiThreadHandler  # for asyncio use loggate.loki.LokiHandler       
         formatter: loki
         urls:
           - "http://loki1:3100/loki/api/v1/push"
@@ -172,8 +172,10 @@ This is special loki formatter, this converts log records to jsons.
 
 
 ## Handlers
-### Class `loggate.loki.LokiQueueHandler`
-This handler send log records to Loki server.
+### Class `loggate.loki.LokiHandler`
+This handler send log records to Loki server. This is blocking implementation of handler.
+It means, when we call log method (`debug`, ... `critical`) the message is sent in the same thread. We should use
+this only for tiny scripts where other ways have a big overhead.
 - `level` - This handler sends only log records with log level equal or higher than this (default: all = `logging.NOTSET`).
 - `urls` - List of loki entrypoints.
 - `strategy` - Deploy strategy (default: `random`).
@@ -186,6 +188,13 @@ This handler send log records to Loki server.
 - `loki_tags` - the list of metadata keys, which are sent to Loki server as label (defailt: [`logger`, `level`]).
 - `meta` - Metadata (dict), which are sent only by this handler.  
 
+### Class `loggate.loki.LokiAsyncioHandler`
+This is non-bloking extending of LokiHandler. We register an extra asyncio task for sending messages to the Loki server.
+Parameters are the same as `loggate.loki.LokiHandler`.
+
+### Class `loggate.loki.LokiThreadHandler`
+This is non-bloking extending of LokiHandler. We register and start an extra thread for sending messages to the Loki server.
+Parameters are the same as `loggate.loki.LokiHandler`.
 
 ## Profiles
 The structure of profiles (parameter `profiles` of `setup_logging`).

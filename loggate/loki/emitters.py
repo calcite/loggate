@@ -1,11 +1,8 @@
-import base64
-import json
 import random
-import ssl
-import urllib.request
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict
 
-from loggate.logger import LoggingException
+from loggate.http import HttpApiCallInterface
+from loggate.logger import LoggingException, LogRecord
 
 LOKI_DEPLOY_STRATEGY_ALL = 'all'
 LOKI_DEPLOY_STRATEGY_RANDOM = 'random'
@@ -29,18 +26,14 @@ class LokiEmitterV1:
 
     success_response_code = 204
 
-    def __init__(self, handler, urls, strategy: str = None,
-                 auth: Optional[Tuple[str, str]] = None,
-                 timeout: int = None, ssl_verify=True):
+    def __init__(self, handler, urls, api: HttpApiCallInterface,
+                 strategy: str = None):
         """
         Loki Handler
         :param handler: LokiHandler
         :param urls: [str]|str loki entrypoints
                      (e.g. [http://127.0.0.1/loki/api/v1/push])
         :param strategy: str ('random', 'fallback', 'all')
-        :param auth: (str, str) - username, password
-        :param timeout int - timeout in seconds
-        :param ssl_verify bool - check ssl server certificate
         """
         if isinstance(urls, str):
             urls = [urls]
@@ -52,60 +45,40 @@ class LokiEmitterV1:
 
         self.urls = urls
         self.strategy = strategy
-        self.__url_indexes = list(range(len(urls)))
+        self._url_indexes = list(range(len(urls)))
         if strategy == LOKI_DEPLOY_STRATEGY_RANDOM:
-            random.shuffle(self.__url_indexes)
-        self.timeout = int(timeout) if timeout else 5
-        # auth
-        self.__auth = None
-        if auth:
-            self.__auth = base64.b64encode(f'{auth[0]}:{auth[1]}'
-                                           .encode('utf8')).decode()
-        self.ctx = ssl.create_default_context()
-        if not ssl_verify:
-            self.ctx.check_hostname = False
-            self.ctx.verify_mode = ssl.CERT_NONE
+            random.shuffle(self._url_indexes)
+
         self.__handler = handler
+        self.api = api
+
+    def prepare_payload(self, record: LogRecord, line):
+        return {
+            'streams': [{
+                'stream': self.build_tags(record),
+                'values': [(str(int(record.created * 1e9)), line)]
+            }]
+        }
 
     def emit(self, record, line):
         """
         Send log record to Loki.
         :param record: LogRecord
         """
-        payload = {
-            'streams': [{
-                'stream': self.build_tags(record),
-                'values': [(str(int(record.created * 1e9)), line)]
-            }]
-        }
-        for ix in self.__url_indexes:
-            jsondata = json.dumps(payload).encode('utf-8')
-            request = urllib.request.Request(self.urls[ix],
-                                             data=jsondata,
-                                             method='POST')
-            request.add_header('Content-Type',
-                               'application/json; charset=utf-8')
-            request.add_header('Content-Length', len(jsondata))
-            if self.__auth:
-                request.add_header("Authorization", "Basic %s" % self.__auth)
-            try:
-                resp = urllib.request.urlopen(
-                    request,
-                    timeout=self.timeout,
-                    context=self.ctx
-                )
-            except urllib.error.HTTPError as ex:
-                resp = ex
-                emsg = resp.read().decode()
+        for ix in self._url_indexes:
+            status_code, msg = self.api.send_json(
+                self.urls[ix],
+                self.prepare_payload(record, line)
+            )
             if self.strategy != LOKI_DEPLOY_STRATEGY_ALL \
-                    and resp.status == self.success_response_code:
+                    and status_code == self.success_response_code:
                 return
-        if resp.status == self.success_response_code:
+        if status_code == self.success_response_code:
             return
         # TODO: make recovery strategy
         raise ValueError(
             f"Unexpected Loki API response status code: "
-            f"{resp.status} \"{emsg}\"")
+            f"{status_code} \"{msg}\"")
 
     def close(self):
         """Close HTTP session."""
@@ -126,3 +99,26 @@ class LokiEmitterV1:
 
         return {key: val for key, val in meta.items()
                 if key in self.__handler.loki_tags}
+
+
+class LokiAsyncEmitterV1(LokiEmitterV1):
+
+    async def emit(self, record, line):
+        """
+        Send log record to Loki.
+        :param record: LogRecord
+        """
+        for ix in self._url_indexes:
+            status_code, msg = await self.api.send_json(
+                self.urls[ix],
+                self.prepare_payload(record, line)
+            )
+            if self.strategy != LOKI_DEPLOY_STRATEGY_ALL \
+                    and status_code == self.success_response_code:
+                return
+        if status_code == self.success_response_code:
+            return
+        # TODO: make recovery strategy
+        raise ValueError(
+            f"Unexpected Loki API response status code: "
+            f"{status_code} \"{msg}\"")
