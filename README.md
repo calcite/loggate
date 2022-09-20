@@ -3,7 +3,8 @@
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/loggate?style=plastic)
 ![License](https://img.shields.io/github/license/calcite/loggate?style=plastic)
 
-The complex logging system with support of log metadata and delivery to [Grafana Loki](https://grafana.com/oss/loki/).
+The complex logging system with support of log metadata and delivery to [Grafana Loki](https://grafana.com/oss/loki/). 
+This library supports threading & asyncio modules.  
 
 ## Simple stdout/stderr colorized output
 One example is more than a thousand words.
@@ -190,7 +191,9 @@ this only for tiny scripts where other ways have a big overhead.
 
 ### Class `loggate.loki.LokiAsyncioHandler`
 This is non-bloking extending of LokiHandler. We register an extra asyncio task for sending messages to the Loki server.
-Parameters are the same as `loggate.loki.LokiHandler`.
+Parameters are the same as `loggate.loki.LokiHandler`. This handler uses `urllib.requests` module in default ([aiohttp](https://pypi.org/project/aiohttp/) as optional). 
+Unfortunately `urllib.requests` module does not support asyncio, it means the sending itself is blocking.
+The `loggate.loki.Loki AsyncioHandler` can use the optional dependency [aiohttp](https://pypi.org/project/aiohttp/) for non-bloking sending.
 
 ### Class `loggate.loki.LokiThreadHandler`
 This is non-bloking extending of LokiHandler. We register and start an extra thread for sending messages to the Loki server.
