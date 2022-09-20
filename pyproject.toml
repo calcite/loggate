@@ -20,9 +20,11 @@ python = "^3.6"
 aiohttp = { version = "*", optional = true}
 
 [tool.poetry.dev-dependencies]
-pytest = "^6.2.5"
+pytest = {version = "^6.2.5", python = "^3.7"}
+pytest = {version = "5.4.0", python = "3.6"}
 PyYAML = "^5.4.1 || ^6.0"
-pytest-asyncio = "^0.19.0"
+pytest-asyncio = {version = "0.16.0", python = "3.6"}
+pytest-asyncio = {version = "^0.19.0", python = "^3.7"}
 
 [tool.poetry.extras]
 asyncio = ["aiohttp"]
