@@ -211,19 +211,29 @@ class Manager(logging.Manager):
         """
         self.__profiles = profiles
 
-    def __cleanup(self):
-        self.meta = {}
-        self.__filters = {}
-        self.__formatters = {}
-        for handler in self.__handlers.values():
-            handler.flush()
-            handler.close()
-        self.__handlers = {}
-        # TODO: This is not a nice solution, because
-        #       when a user gets a logger instance before he does
-        #       a setup_logging, this unjoin the logger from logging hierarchy.
-        self.loggerDict.clear()
-        self.root = Logger.get_root(recreate=True)
+    def __cleanup(self, disable_existing_loggers=False):
+        logging._acquireLock()
+        try:
+            self.meta = {}
+            self.__filters = {}
+            self.__formatters = {}
+            for handler in self.__handlers.values():
+                handler.flush()
+                handler.close()
+            self.__handlers = {}
+            if disable_existing_loggers:
+                self.loggerDict = {}
+            else:
+                for logger in self.loggerDict.values():
+                    if not isinstance(logger, logging.PlaceHolder):
+                        logger.setLevel(logging.NOTSET)
+                        logger.propagate = True
+                        logger.disabled = False
+                        logger.handlers = []
+        finally:
+            logging._releaseLock()
+        # self.loggerDict.clear()
+        # self.root = Logger.get_root(recreate=True)
 
     def __create_handler_from_schema(self, attrs: dict):
         _class = attrs.pop('class', 'logging.Handler')
@@ -275,7 +285,7 @@ class Manager(logging.Manager):
             else:
                 logger.addHandler(self.__handlers[handler])
 
-    def activate_profile(self, profile_name: str, cleanup: bool = True) -> None:
+    def activate_profile(self, profile_name: str) -> None:
         """
         Switch login profile
         :param profile_name: str - profile name
@@ -290,8 +300,7 @@ class Manager(logging.Manager):
         if parent_profile_name:
             self.activate_profile(parent_profile_name, False)
 
-        if cleanup:
-            self.__cleanup()
+        self.__cleanup(profile.get('disable_existing_loggers', False))
         # Filters
         for name, attrs in profile.get('filters', {}).items():
             _class = attrs.pop('class', 'logging.Filter')
@@ -352,7 +361,7 @@ def setup_logging(profiles: dict = None, default_profile: str = 'default',
     if isinstance(profiles, dict) and 'profiles' in profiles:
         profiles = profiles.get('profiles')
     Logger.manager.set_profiles(profiles if profiles else DEFAULT_PROFILE)
-    Logger.manager.activate_profile(default_profile, cleanup=True)
+    Logger.manager.activate_profile(default_profile)
 
 
 Logger.manager = Manager(Logger.get_root())

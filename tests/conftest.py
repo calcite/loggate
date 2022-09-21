@@ -10,6 +10,7 @@ def make_profile():
     def _make_profile(update: dict = None):
         profiles = {
             'default': {
+                'disable_existing_loggers': True,
                 'formatters': {
                     'loki': {
                         'class': 'loggate.loki.LokiLogFormatter'
