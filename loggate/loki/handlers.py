@@ -3,7 +3,9 @@ from logging.handlers import QueueHandler, QueueListener
 from queue import Queue
 
 from .formatters import LokiLogFormatter
-from .emitters import LokiEmitterV1
+from .emitters import LokiEmitterV1, LokiAsyncEmitterV1
+from ..helper import AsyncioQueueListener
+from ..http.simple_api_call import SimpleApiCall
 
 _defaultFormatter = LokiLogFormatter()
 
@@ -11,6 +13,9 @@ _defaultFormatter = LokiLogFormatter()
 class LokiHandler(Handler):
     """
     Log handler that sends log records to Loki.
+    This type of Loki handler is blocking. It means, when we call log method
+    (debug, ... critical) the message is sent in the same thread. We should use
+     this only for tiny scripts where other ways have a big overhead.
 
     `Loki API <https://github.com/grafana/loki/blob/master/docs/api.md>`_
     """
@@ -38,12 +43,9 @@ class LokiHandler(Handler):
 
         """
         super(LokiHandler, self).__init__()
-        self.emitter = LokiEmitterV1(self,
-                                     urls=urls,
-                                     strategy=strategy,
-                                     auth=auth,
-                                     timeout=timeout,
-                                     ssl_verify=ssl_verify)
+        api = SimpleApiCall(auth=auth, timeout=timeout, ssl_verify=ssl_verify)
+        self.emitter = LokiEmitterV1(self, urls=urls, api=api,
+                                     strategy=strategy)
         self.meta = meta
         self.loki_tags = loki_tags if loki_tags else self.DEFAULT_LOKI_TAGS
 
@@ -72,10 +74,11 @@ class LokiHandler(Handler):
             self.handleError(ex)
 
 
-class LokiQueueHandler(QueueHandler):
+class LokiThreadHandler(QueueHandler):
     """
-    This handler automatically creates listener and `LokiHandler`
-    to handle logs queue.
+    This type of Loki handler is non-blocking.
+    The sending of messages is done in separate thread.
+    This type of handler we should use as default.
     """
 
     def __init__(self, **kwargs):
@@ -83,7 +86,7 @@ class LokiQueueHandler(QueueHandler):
         Create new logger handler with the specified queue
         and kwargs for the `LokiHandler`.
         """
-        super(LokiQueueHandler, self).__init__(Queue())
+        super(LokiThreadHandler, self).__init__(Queue())
         self.handler = LokiHandler(**kwargs)
         self.listener = QueueListener(self.queue, self.handler)
         self.listener.start()
@@ -112,3 +115,49 @@ class LokiQueueHandler(QueueHandler):
             self.enqueue(record)
         except Exception:
             self.handleError(record)
+
+
+class _LokiAsyncHandler(LokiHandler):
+    """
+    This is only asyncio wrapper of LokiHandler.
+    """
+    def __init__(self, urls: [str], strategy: str = None, meta: dict = None,
+                 auth=None, loki_tags=None,
+                 timeout=None, ssl_verify=True):
+        Handler.__init__(self)
+        try:
+            from ..http.aio_api_call import AIOApiCall
+            api = AIOApiCall(auth=auth, timeout=timeout, ssl_verify=ssl_verify)
+        except ImportError:
+            api = SimpleApiCall(auth=auth, timeout=timeout,
+                                ssl_verify=ssl_verify)
+        self.emitter = LokiAsyncEmitterV1(self, urls=urls, api=api,
+                                          strategy=strategy)
+        self.meta = meta
+        self.loki_tags = loki_tags if loki_tags else self.DEFAULT_LOKI_TAGS
+
+    async def emit(self, record):
+        # noinspection PyBroadException
+        try:
+            await self.emitter.emit(record, self.format(record))
+        except Exception as ex:
+            self.handleError(ex)
+
+    async def handle(self, record):
+        rv = self.filter(record)
+        if rv:
+            await self.emit(record)
+        return rv
+
+
+class LokiAsyncioHandler(LokiThreadHandler):
+
+    def __init__(self, **kwargs):
+        """
+        Create new logger handler with the specified queue
+        and kwargs for the `LokiHandler`.
+        """
+        QueueHandler.__init__(self, Queue())
+        self.handler = _LokiAsyncHandler(**kwargs)
+        self.listener = AsyncioQueueListener(self.queue, self.handler)
+        self.listener.start()

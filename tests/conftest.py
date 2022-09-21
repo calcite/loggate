@@ -1,6 +1,7 @@
 import threading
 import urllib
 
+import aiohttp
 import pytest
 
 
@@ -16,7 +17,7 @@ def make_profile():
                 },
                 'handlers': {
                     'loki': {
-                        'class': 'loggate.loki.LokiQueueHandler',
+                        'class': 'loggate.loki.LokiThreadHandler',
                         'formatter': 'loki',
                         'urls': ['http://loki'],
                     }
@@ -50,6 +51,9 @@ class MockSession:
         def __init__(self, status):
             self.status = status
 
+        def read(self):
+            return b''
+
     def __init__(self, *args, **kwargs):
         self.requests = []
         self.closed = threading.Event()
@@ -68,3 +72,52 @@ def session(monkeypatch):
     _session = MockSession()
     monkeypatch.setattr(urllib.request, 'urlopen', _session.send)
     return _session
+
+
+class MockAsyncSession:
+    class MockResponse:
+        def __init__(self, status):
+            self.status = status
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+        async def text(self):
+            return ''
+
+    def __init__(self, *args, **kwargs):
+        self.requests = []
+        self.closed = threading.Event()
+        self.response_code = 204
+        self.client = {}
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    def post(self, url, **kwargs):
+        request = {'url': url}
+        request.update(kwargs)
+        request.update(self.client)
+        # print(request)
+        self.requests.append(request)
+        if isinstance(self.response_code, list):
+            return MockAsyncSession.MockResponse(self.response_code.pop(0))
+        return MockAsyncSession.MockResponse(self.response_code)
+
+    def get_client(self, **kwargs):
+        self.client = {}
+        self.client.update(kwargs)
+        return self
+
+
+@pytest.fixture
+def async_session(monkeypatch):
+    __session = MockAsyncSession()
+    monkeypatch.setattr(aiohttp, 'ClientSession', __session.get_client)
+    return __session

@@ -22,7 +22,7 @@ profiles:
         filters:
           - warning
       loki:
-        class: loggate.loki.LokiQueueHandler
+        class: loggate.loki.LokiAsyncioHandler
         level: DEBUG
         formatter: loki
         timeout: 20

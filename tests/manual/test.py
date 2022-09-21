@@ -1,3 +1,4 @@
+import asyncio
 import os
 import sys
 
@@ -15,6 +16,7 @@ def get_yaml(filename):
         return yaml.safe_load(fd)
 
 
+loop = asyncio.get_event_loop()
 schema = get_yaml('test.yaml')
 setup_logging(profiles=schema.get('profiles'))
 
@@ -23,6 +25,7 @@ logger = get_logger('component', meta={'version': '1.0.0'})
 
 # logger.debug('Loading resources for the component')
 logger.info('Initialize of the component')
+loop.run_forever()
 # logger.warning('The component is not ready')
 # logger.error('The component failed.', meta={'inputs': {'A': 1, 'B': 2}})
 # logger.critical('The component unexpected failed.',
