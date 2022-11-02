@@ -1,4 +1,5 @@
 import random
+import sys
 from typing import Any, Dict
 
 from loggate.http import HttpApiCallInterface
@@ -25,6 +26,7 @@ class LokiEmitterV1:
     """
 
     success_response_code = 204
+    timeout_response_code = 1000
 
     def __init__(self, handler, urls, api: HttpApiCallInterface,
                  strategy: str = None):
@@ -70,10 +72,15 @@ class LokiEmitterV1:
                 self.urls[ix],
                 self.prepare_payload(record, line)
             )
-            if self.strategy != LOKI_DEPLOY_STRATEGY_ALL \
-                    and status_code == self.success_response_code:
-                return
-        if status_code == self.success_response_code:
+            if status_code == self.success_response_code:
+                if self.strategy != LOKI_DEPLOY_STRATEGY_ALL:
+                    return
+            elif status_code == self.timeout_response_code:
+                sys.stderr.write(f'loggate: The delivery logs to '
+                                 f'"{self.urls[ix]}" failed.\n')
+
+        if status_code in [self.success_response_code,
+                           self.timeout_response_code]:
             return
         # TODO: make recovery strategy
         raise ValueError(

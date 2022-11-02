@@ -1,6 +1,7 @@
 import base64
 import json
 import ssl
+import socket
 import urllib.request
 from typing import Optional, Tuple
 
@@ -15,7 +16,7 @@ class SimpleApiCall(HttpApiCallInterface):
 
     def __init__(self, auth: Optional[Tuple[str, str]] = None,
                  timeout: int = None, ssl_verify=True):
-        self.timeout = int(timeout) if timeout else 5
+        self.timeout = int(timeout) if timeout else 10
         # auth
         self.__auth = None
         if auth:
@@ -42,3 +43,7 @@ class SimpleApiCall(HttpApiCallInterface):
             return resp.status, resp.read().decode()
         except urllib.error.HTTPError as ex:
             return ex.status, ex.read().decode()
+        except socket.timeout:
+            return 1000, "Timeout"
+        except Exception as ex:
+            return None, "Unknown error: {0}".format(ex)
