@@ -96,7 +96,7 @@ class LogColorFormatter(logging.Formatter):
             trace = record.exc_text.replace('\n',
                                             f'\n{self.INDENTATION_TRACEBACK}')
             s += f'{self.INDENTATION_TRACEBACK}{_trace_color}' \
-                 f'{trace}{self.COLOR["COLOR_RESET"]}'
+                 f'{trace}{self.COLORS["COLOR_RESET"]}'
         if record.stack_info:
             if s[-1:] != "\n":
                 s = s + "\n"
