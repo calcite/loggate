@@ -31,7 +31,7 @@ class LogColorFormatter(logging.Formatter):
         'COLOR_TRACEBACK': None
     }
 
-    INDENTATION_TRACEBACK = '\t\t\t'
+    INDENTATION_TRACEBACK = '    '
     INDENTATION_METADATA = '\t\t\t\t'
 
     def __init__(self, fmt=None, datefmt=None, style='%', validate=True,
