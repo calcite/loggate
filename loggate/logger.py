@@ -204,6 +204,9 @@ class Manager(logging.Manager):
             rv.meta = meta
         return rv
 
+    def get_handler(self, name: str):
+        return self.__handlers.get(name)
+
     def set_profiles(self, profiles: dict) -> None:
         """
         Setup profiles structure.
