@@ -6,26 +6,28 @@ import json
 from loggate import setup_logging, get_logger
 
 
-def check_call(request: dict, labels, msg, headers=None, url='http://loki'):
+def check_call(request: dict, *args, headers=None, url='http://loki'):
     # check loki url address
     assert request['url'] == url, \
         f"Wrong loki url {request['url']} != {url}"
+    # print(request)
     data = request['json']
     # check labels
-    assert 'streams' in data
-    assert 'stream' in data['streams'][0]
-    assert labels == data['streams'][0]['stream']
+    assert len(data['streams']) > 0
     # headers
     if not headers:
         headers = {'Content-Type': 'application/json; charset=utf-8'}
     for k, val in headers.items():
         request['headers'][k]
-    # check message
-    assert len(data['streams'][0]['values']) > 0
-    _msg = data['streams'][0]['values'][0][1]
-    if isinstance(msg, dict):
-        _msg = json.loads(_msg)
-    assert msg == _msg
+        # check message
+    for ix in range(len(args)):
+        row = args[ix]
+        rec = data['streams'][ix]
+        assert rec.get('stream', {}) == row[0]
+        _msg = rec.get('values')[0][1]
+        if not isinstance(_msg, dict):
+            _msg = json.loads(_msg)
+        assert _msg == row[1]
 
 
 @pytest.mark.asyncio
@@ -44,19 +46,16 @@ async def test_simple(make_profile, async_session):
     logger.error('Error')
     logger.critical('Critical')
 
-    await asyncio.sleep(.1)
+    await asyncio.sleep(.2)
     check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'debug'},
-               {"msg": "Debug"})
-    check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'warning'},
-               {"msg": "Warning"})
-    check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'error'},
-               {"msg": "Error"})
-    check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"})
+               ({'logger': 'component', 'level': 'debug'},
+                {"msg": "Debug"}),
+               ({'logger': 'component', 'level': 'warning'},
+                {"msg": "Warning"}),
+               ({'logger': 'component', 'level': 'error'},
+                {"msg": "Error"}),
+               ({'logger': 'component', 'level': 'critical'},
+                {"msg": "Critical"}))
 
 
 @pytest.mark.asyncio
@@ -93,38 +92,35 @@ async def test_metadata(make_profile, async_session):
                           'overwriteL': 'Y',
                           'overwriteH': '111'})
 
-    await asyncio.sleep(.1)
+    await asyncio.sleep(.2)
     check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'debug', 'meta': 'DEF'},
-               {"msg": "Debug",
-                'handler_meta': '000',
-                'logger_meta': 'ABC',
-                'overwriteH': '111',
-                'overwriteL': 'Y'})
-    check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'warning', 'meta': 'GHI'},
-               {"msg": "Warning",
-                'handler_meta': '000',
-                'logger_meta': 'ABC',
-                'overwriteH': '111',
-                'overwriteL': 'Y'
-                })
-    check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'error', 'meta': 'JKL'},
-               {"msg": "Error",
-                'handler_meta': '000',
-                'logger_meta': 'ABC',
-                'overwriteH': '111',
-                'overwriteL': 'Y'
-                })
-    check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical', 'meta': 'MNO'},
-               {"msg": "Critical",
-                'handler_meta': '000',
-                'logger_meta': 'ABC',
-                'overwriteH': '111',
-                'overwriteL': 'Y'
-                })
+               ({'logger': 'component', 'level': 'debug', 'meta': 'DEF'},
+                {"msg": "Debug",
+                 'handler_meta': '000',
+                 'logger_meta': 'ABC',
+                 'overwriteH': '111',
+                 'overwriteL': 'Y'}),
+               ({'logger': 'component', 'level': 'warning', 'meta': 'GHI'},
+                {"msg": "Warning",
+                 'handler_meta': '000',
+                 'logger_meta': 'ABC',
+                 'overwriteH': '111',
+                 'overwriteL': 'Y'
+                 }),
+               ({'logger': 'component', 'level': 'error', 'meta': 'JKL'},
+                {"msg": "Error",
+                 'handler_meta': '000',
+                 'logger_meta': 'ABC',
+                 'overwriteH': '111',
+                 'overwriteL': 'Y'
+                 }),
+               ({'logger': 'component', 'level': 'critical', 'meta': 'MNO'},
+                {"msg": "Critical",
+                 'handler_meta': '000',
+                 'logger_meta': 'ABC',
+                 'overwriteH': '111',
+                 'overwriteL': 'Y'
+                 }))
 
 
 @pytest.mark.asyncio
@@ -141,20 +137,11 @@ async def test_loki_all_strategy(make_profile, async_session):
     setup_logging(profiles=profiles)
     logger = get_logger('component')
     logger.critical('Critical')
-
-    await asyncio.sleep(.1)
-    check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"},
-               url='http://loki1')
-    check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"},
-               url='http://loki2')
-    check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"},
-               url='http://loki3')
+    rec = ({'logger': 'component', 'level': 'critical'}, {"msg": "Critical"})
+    await asyncio.sleep(.2)
+    check_call(async_session.requests.pop(0), rec, url='http://loki1')
+    check_call(async_session.requests.pop(0), rec, url='http://loki2')
+    check_call(async_session.requests.pop(0), rec, url='http://loki3')
 
 
 @pytest.mark.asyncio
@@ -175,19 +162,13 @@ async def test_loki_fallback_strategy(make_profile, async_session, capsys):
     logger = get_logger('component')
     logger.critical('Critical')
 
-    await asyncio.sleep(.1)
-    check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"},
-               url='http://loki1')
-    check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"},
-               url='http://loki2')
-    check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"},
-               url='http://loki3')
+    await asyncio.sleep(.2)
+
+    rec = ({'logger': 'component', 'level': 'critical'}, {"msg": "Critical"})
+
+    check_call(async_session.requests.pop(0), rec, url=servers.pop(0))
+    check_call(async_session.requests.pop(0), rec, url=servers.pop(0))
+    check_call(async_session.requests.pop(0), rec, url=servers.pop(0))
     captured = capsys.readouterr()
     assert '--- Logging error ---' in captured.err
 
@@ -209,5 +190,5 @@ async def test_loki_with_auth(make_profile, async_session, capsys):
     await asyncio.sleep(.1)
 
     check_call(async_session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"})
+               ({'logger': 'component', 'level': 'critical'},
+                {"msg": "Critical"}))

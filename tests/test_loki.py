@@ -4,26 +4,25 @@ from urllib.request import Request
 from loggate import setup_logging, get_logger
 
 
-def check_call(request: Request, labels, msg, headers=None, url='http://loki'):
+def check_call(request: Request, *args, headers=None, url='http://loki'):
     # check loki url address
     assert request.full_url == url, \
         f"Wrong loki url {request.full_url} != {url}"
     data = json.loads(request.data)
-    # check labels
-    assert 'streams' in data
-    assert 'stream' in data['streams'][0]
-    assert labels == data['streams'][0]['stream']
+    assert len(data['streams']) > 0
     # headers
     if not headers:
         headers = {'Content-type': 'application/json; charset=utf-8'}
     for k, val in headers.items():
         request.headers[k]
     # check message
-    assert len(data['streams'][0]['values']) > 0
-    _msg = data['streams'][0]['values'][0][1]
-    if isinstance(msg, dict):
-        _msg = json.loads(_msg)
-    assert msg == _msg
+    for row in args:
+        rec = data['streams'].pop(0)
+        assert rec.get('stream', {}) == row[0]
+        _msg = rec.get('values')[0][1]
+        if not isinstance(_msg, dict):
+            _msg = json.loads(_msg)
+        assert _msg == row[1]
 
 
 def test_simple(make_profile, session):
@@ -39,19 +38,14 @@ def test_simple(make_profile, session):
     logger.error('Error')
     logger.critical('Critical')
 
-    session.closed.wait(.1)
-    check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'debug'},
-               {"msg": "Debug"})
-    check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'warning'},
-               {"msg": "Warning"})
-    check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'error'},
-               {"msg": "Error"})
-    check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"})
+    session.closed.wait(.2)
+    check_call(
+        session.requests.pop(0),
+        ({'logger': 'component', 'level': 'debug'}, {"msg": "Debug"}),
+        ({'logger': 'component', 'level': 'warning'}, {"msg": "Warning"}),
+        ({'logger': 'component', 'level': 'error'}, {"msg": "Error"}),
+        ({'logger': 'component', 'level': 'critical'}, {"msg": "Critical"})
+    )
 
 
 def test_metadata(make_profile, session):
@@ -86,38 +80,35 @@ def test_metadata(make_profile, session):
                           'overwriteL': 'Y',
                           'overwriteH': '111'})
 
-    session.closed.wait(.1)
+    session.closed.wait(.2)
     check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'debug', 'meta': 'DEF'},
-               {"msg": "Debug",
-                'handler_meta': '000',
-                'logger_meta': 'ABC',
-                'overwriteH': '111',
-                'overwriteL': 'Y'})
-    check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'warning', 'meta': 'GHI'},
-               {"msg": "Warning",
-                'handler_meta': '000',
-                'logger_meta': 'ABC',
-                'overwriteH': '111',
-                'overwriteL': 'Y'
-                })
-    check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'error', 'meta': 'JKL'},
-               {"msg": "Error",
-                'handler_meta': '000',
-                'logger_meta': 'ABC',
-                'overwriteH': '111',
-                'overwriteL': 'Y'
-                })
-    check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical', 'meta': 'MNO'},
-               {"msg": "Critical",
-                'handler_meta': '000',
-                'logger_meta': 'ABC',
-                'overwriteH': '111',
-                'overwriteL': 'Y'
-                })
+               ({'logger': 'component', 'level': 'debug', 'meta': 'DEF'},
+                {"msg": "Debug",
+                 'handler_meta': '000',
+                 'logger_meta': 'ABC',
+                 'overwriteH': '111',
+                 'overwriteL': 'Y'}),
+               ({'logger': 'component', 'level': 'warning', 'meta': 'GHI'},
+                {"msg": "Warning",
+                 'handler_meta': '000',
+                 'logger_meta': 'ABC',
+                 'overwriteH': '111',
+                 'overwriteL': 'Y'
+                 }),
+               ({'logger': 'component', 'level': 'error', 'meta': 'JKL'},
+                {"msg": "Error",
+                 'handler_meta': '000',
+                 'logger_meta': 'ABC',
+                 'overwriteH': '111',
+                 'overwriteL': 'Y'
+                 }),
+               ({'logger': 'component', 'level': 'critical', 'meta': 'MNO'},
+                {"msg": "Critical",
+                 'handler_meta': '000',
+                 'logger_meta': 'ABC',
+                 'overwriteH': '111',
+                 'overwriteL': 'Y'
+                 }))
 
 
 def test_loki_all_strategy(make_profile, session):
@@ -133,19 +124,11 @@ def test_loki_all_strategy(make_profile, session):
     logger = get_logger('component')
     logger.critical('Critical')
 
-    session.closed.wait(.1)
-    check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"},
-               url='http://loki1')
-    check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"},
-               url='http://loki2')
-    check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"},
-               url='http://loki3')
+    session.closed.wait(.2)
+    rec = ({'logger': 'component', 'level': 'critical'}, {"msg": "Critical"})
+    check_call(session.requests.pop(0), rec, url=servers.pop(0))
+    check_call(session.requests.pop(0), rec, url=servers.pop(0))
+    check_call(session.requests.pop(0), rec, url=servers.pop(0))
 
 
 def test_loki_fallback_strategy(make_profile, session, capsys):
@@ -164,20 +147,12 @@ def test_loki_fallback_strategy(make_profile, session, capsys):
     logger = get_logger('component')
     logger.critical('Critical')
 
-    session.closed.wait(.1)
+    session.closed.wait(.2)
+    rec = ({'logger': 'component', 'level': 'critical'}, {"msg": "Critical"})
     assert session.requests[0].kwargs['timeout'] == 3
-    check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"},
-               url='http://loki1')
-    check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"},
-               url='http://loki2')
-    check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"},
-               url='http://loki3')
+    check_call(session.requests.pop(0), rec, url=servers.pop(0))
+    check_call(session.requests.pop(0), rec, url=servers.pop(0))
+    check_call(session.requests.pop(0), rec, url=servers.pop(0))
     captured = capsys.readouterr()
     assert '--- Logging error ---' in captured.err
 
@@ -194,8 +169,8 @@ def test_loki_with_auth(make_profile, session, capsys):
     logger = get_logger('component')
     logger.critical('Critical')
 
-    session.closed.wait(.1)
+    session.closed.wait(.2)
 
     check_call(session.requests.pop(0),
-               {'logger': 'component', 'level': 'critical'},
-               {"msg": "Critical"})
+               ({'logger': 'component', 'level': 'critical'},
+                {"msg": "Critical"}))

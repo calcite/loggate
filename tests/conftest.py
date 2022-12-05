@@ -21,6 +21,7 @@ def make_profile():
                         'class': 'loggate.loki.LokiThreadHandler',
                         'formatter': 'loki',
                         'urls': ['http://loki'],
+                        'send_interval': 0.1
                     }
                 },
                 'loggers': {
