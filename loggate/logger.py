@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 
-from loggate.helper import get_level
+from . import get_level
 
 _srcfile = os.path.normcase(logging.addLevelName.__code__.co_filename)
 

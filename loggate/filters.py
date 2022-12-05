@@ -1,6 +1,6 @@
 import logging
 
-from loggate.helper import get_level
+from . import get_level
 
 
 class LowerLogLevelFilter(logging.Filter):

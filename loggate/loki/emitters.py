@@ -1,6 +1,11 @@
+import asyncio
+
 import random
+from multiprocessing import SimpleQueue
+from queue import Empty
+from threading import Thread, Event
+
 import sys
-from typing import Any, Dict
 
 from loggate.http import HttpApiCallInterface
 from loggate.logger import LoggingException, LogRecord
@@ -17,6 +22,7 @@ LOKI_DEPLOY_STRATEGIES = [
 
 
 class LokiWrongDeployStrategy(LoggingException): pass       # noqa: E701
+class LokiServerError(LoggingException): pass  # noqa: E701
 
 
 class LokiEmitterV1:
@@ -28,7 +34,7 @@ class LokiEmitterV1:
     success_response_code = 204
     timeout_response_code = 1000
 
-    def __init__(self, handler, urls, api: HttpApiCallInterface,
+    def __init__(self, handler, urls, api: HttpApiCallInterface, queue,
                  strategy: str = None):
         """
         Loki Handler
@@ -51,26 +57,54 @@ class LokiEmitterV1:
         if strategy == LOKI_DEPLOY_STRATEGY_RANDOM:
             random.shuffle(self._url_indexes)
 
-        self.__handler = handler
+        self.handler = handler
+        self.queue: SimpleQueue = queue
         self.api = api
+        self.thread = None
+        self.thread_stop = Event()
 
-    def prepare_payload(self, record: LogRecord, line):
-        return {
-            'streams': [{
-                'stream': self.build_tags(record),
-                'values': [(str(int(record.created * 1e9)), line)]
-            }]
-        }
+    def prepare_payload(self, records: [LogRecord]):
+        data = []
+        for record in records:
+            data.append({
+                'stream': self.handler.build_tags(record),
+                'values': [(str(int(record.created * 1e9)),
+                            self.handler.format(record))]
+            })
+        return {'streams': data}
 
-    def emit(self, record, line):
+    def emit(self, records):
         """
-        Send log record to Loki.
-        :param record: LogRecord
+        Send log records to Loki.
+        :param records: List[LogRecord]
         """
+        payload = self.prepare_payload(records)
         for ix in self._url_indexes:
-            status_code, msg = self.api.send_json(
-                self.urls[ix],
-                self.prepare_payload(record, line)
+            status_code, msg = self.api.send_json(self.urls[ix], payload)
+            if status_code == self.success_response_code:
+                if self.strategy != LOKI_DEPLOY_STRATEGY_ALL:
+                    return
+            elif status_code == self.timeout_response_code:
+                sys.stderr.write(f'loggate: The delivery logs to '
+                                 f'"{self.urls[ix]}" failed.\n')
+
+        if status_code in [self.success_response_code,
+                           self.timeout_response_code]:
+            return
+        # TODO: make recovery strategy
+        raise LokiServerError(
+            f"Unexpected Loki API response status code: "
+            f"{status_code} \"{msg}\"")
+
+    async def emit_async(self, records):
+        """
+        Asyncio send log record to Loki.
+        :param records: List[LogRecord]
+        """
+        payload = self.prepare_payload(records)
+        for ix in self._url_indexes:
+            status_code, msg = await self.api.send_json(
+                self.urls[ix], payload
             )
             if status_code == self.success_response_code:
                 if self.strategy != LOKI_DEPLOY_STRATEGY_ALL:
@@ -83,49 +117,54 @@ class LokiEmitterV1:
                            self.timeout_response_code]:
             return
         # TODO: make recovery strategy
-        raise ValueError(
+        raise LokiServerError(
             f"Unexpected Loki API response status code: "
             f"{status_code} \"{msg}\"")
 
     def close(self):
         """Close HTTP session."""
-        pass
+        self.thread_stop.set()
+        if self.thread:
+            self.thread.join()
 
-    def build_tags(self, record) -> Dict[str, Any]:
-        """
-        Prepare tags
-        :param record: LogRecord
-        :return:  Dict[str, Any]
-        """
-        meta = {}
-        if hasattr(self.__handler, 'meta') and self.__handler.meta:
-            meta = self.__handler.meta.copy()
-        meta[self.__handler.level_tag] = record.levelname.lower()
-        meta[self.__handler.logger_tag] = record.name
-        meta.update(getattr(record, "meta", {}))
+    def start(self):
+        def process():
+            while not self.thread_stop.is_set():
+                records = []
+                for _ in range(self.handler.max_records_in_one_request):
+                    try:
+                        records.append(
+                            self.queue.get(block=True,
+                                           timeout=self.handler.send_interval))
+                    except Empty:
+                        break
+                if records:
+                    try:
+                        self.emit(records)
+                    except LokiServerError:
+                        self.handler.handleError(records[0])
 
-        return {key: val for key, val in meta.items()
-                if key in self.__handler.loki_tags}
+        self.thread = Thread(target=process, name="loggate", daemon=True)
+        self.thread.start()
 
-
-class LokiAsyncEmitterV1(LokiEmitterV1):
-
-    async def emit(self, record, line):
-        """
-        Send log record to Loki.
-        :param record: LogRecord
-        """
-        for ix in self._url_indexes:
-            status_code, msg = await self.api.send_json(
-                self.urls[ix],
-                self.prepare_payload(record, line)
-            )
-            if self.strategy != LOKI_DEPLOY_STRATEGY_ALL \
-                    and status_code == self.success_response_code:
-                return
-        if status_code == self.success_response_code:
-            return
-        # TODO: make recovery strategy
-        raise ValueError(
-            f"Unexpected Loki API response status code: "
-            f"{status_code} \"{msg}\"")
+    def asyncio_start(self):
+        async def process(is_full_asyncio):
+            while not self.thread_stop.is_set():
+                records = []
+                for _ in range(self.handler.max_records_in_one_request):
+                    try:
+                        records.append(self.queue.get(block=False))
+                    except Empty:
+                        break
+                if records:
+                    try:
+                        if is_full_asyncio:
+                            await self.emit_async(records)
+                        else:
+                            self.emit(records)
+                    except LokiServerError:
+                        self.handler.handleError(records[0])
+                else:
+                    await asyncio.sleep(self.handler.send_interval)
+        is_full_asyncio = asyncio.iscoroutinefunction(self.api.send_json)
+        asyncio.get_event_loop().create_task(process(is_full_asyncio))

@@ -37,8 +37,9 @@ class AIOApiCall(HttpApiCallInterface):
         """
         This makes asyncio request to server
         """
-        async with aiohttp.ClientSession(timeout=self.__timeout,
-                                         headers=self.headers) as session:
+        async with aiohttp.ClientSession(
+                timeout=self.__timeout,
+                headers=self.headers) as session:
             if method == 'POST':
                 fce = session.post
             elif method == 'GET':

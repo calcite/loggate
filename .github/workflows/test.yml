@@ -8,12 +8,12 @@ on:
       - '**.yml'
     branches:
       - '**'
-  pull_request:
-    paths:
-      - '**.py'
-      - '**.yml'
-    branches:
-      - '**'
+#  pull_request:
+#    paths:
+#      - '**.py'
+#      - '**.yml'
+#    branches:
+#      - '**'
 
 
 jobs:
