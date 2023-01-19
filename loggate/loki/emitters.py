@@ -135,8 +135,9 @@ class LokiEmitterV1:
                     for _ in range(self.handler.max_records_in_one_request):
                         try:
                             records.append(
-                                self.queue.get(block=True,
-                                               timeout=self.handler.send_interval))
+                                self.queue.get(
+                                    block=True,
+                                    timeout=self.handler.send_interval))
                         except Empty:
                             break
                     if records:
