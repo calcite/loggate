@@ -131,23 +131,22 @@ class LokiEmitterV1:
         def process():
             while not self.thread_stop.is_set():
                 records = []
-                try:
-                    for _ in range(self.handler.max_records_in_one_request):
-                        try:
-                            records.append(
-                                self.queue.get(
-                                    block=True,
-                                    timeout=self.handler.send_interval))
-                        except Empty:
-                            break
-                    if records:
-                        try:
-                            self.emit(records)
-                        except LokiServerError:
-                            self.handler.handleError(records[0])
-                except Exception as ex:
-                    if sys.stderr:
-                        sys.stderr.write(f"[CRITICAL LOKI ERROR]\n{ex}\n")
+                for _ in range(self.handler.max_records_in_one_request):
+                    try:
+                        records.append(
+                            self.queue.get(
+                                block=True,
+                                timeout=self.handler.send_interval))
+                    except Empty:
+                        break
+                if records:
+                    try:
+                        self.emit(records)
+                    except LokiServerError:
+                        self.handler.handleError(records[0])
+                    except Exception as ex:
+                        if sys.stderr:
+                            sys.stderr.write(f"[CRITICAL LOKI ERROR]\n{ex}\n")
 
         self.thread = Thread(target=process, name="loggate", daemon=True)
         self.thread.start()
@@ -155,25 +154,24 @@ class LokiEmitterV1:
     def asyncio_start(self):
         async def process(is_full_asyncio):
             while not self.thread_stop.is_set():
-                try:
-                    records = []
-                    for _ in range(self.handler.max_records_in_one_request):
-                        try:
-                            records.append(self.queue.get(block=False))
-                        except Empty:
-                            break
-                    if records:
-                        try:
-                            if is_full_asyncio:
-                                await self.emit_async(records)
-                            else:
-                                self.emit(records)
-                        except LokiServerError:
-                            self.handler.handleError(records[0])
-                    else:
-                        await asyncio.sleep(self.handler.send_interval)
-                except Exception as ex:
-                    if sys.stderr:
-                        sys.stderr.write(f"[CRITICAL LOKI ERROR]\n{ex}\n")
+                records = []
+                for _ in range(self.handler.max_records_in_one_request):
+                    try:
+                        records.append(self.queue.get(block=False))
+                    except Empty:
+                        break
+                if records:
+                    try:
+                        if is_full_asyncio:
+                            await self.emit_async(records)
+                        else:
+                            self.emit(records)
+                    except LokiServerError:
+                        self.handler.handleError(records[0])
+                    except Exception as ex:
+                        if sys.stderr:
+                            sys.stderr.write(f"[CRITICAL LOKI ERROR]\n{ex}\n")
+                else:
+                    await asyncio.sleep(self.handler.send_interval)
         is_full_asyncio = asyncio.iscoroutinefunction(self.api.send_json)
         asyncio.get_event_loop().create_task(process(is_full_asyncio))

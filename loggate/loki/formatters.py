@@ -7,6 +7,15 @@ class LokiLogFormatter(logging.Formatter):
     Loki formatter
     """
 
+    @staticmethod
+    def __prep(val):
+        if isinstance(val, str):
+            return val
+        elif isinstance(val, bytes):
+            return val.decode('utf-8')
+        else:
+            return str(val)
+
     def format(self, record: logging.LogRecord, handler=None) -> str:
         res = {}
         if isinstance(record.msg, dict):
@@ -22,11 +31,13 @@ class LokiLogFormatter(logging.Formatter):
             if hasattr(handler, 'loki_tags'):
                 loki_tags = handler.loki_tags
             if hasattr(handler, 'meta') and handler.meta:
-                res.update({key: val for key, val in handler.meta.items()
+                res.update({key: self.__prep(val)
+                            for key, val in handler.meta.items()
                             if key not in loki_tags})
         if hasattr(record, 'meta') and record.meta:
-            res.update({key: val for key, val in record.meta.items()
-                       if key not in loki_tags})
+            res.update({key: self.__prep(val)
+                        for key, val in record.meta.items()
+                        if key not in loki_tags})
         if record.exc_info:
             res['exception'] = "\n" + self.formatException(record.exc_info)
         if record.stack_info:
