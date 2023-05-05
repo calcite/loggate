@@ -220,7 +220,6 @@ class Manager(logging.Manager):
     def get_profiles(self) -> dict:
         return copy.deepcopy(self.__profiles)
 
-
     def __cleanup(self, disable_existing_loggers=False):
         logging._acquireLock()
         try:

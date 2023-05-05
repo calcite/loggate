@@ -50,18 +50,22 @@ class LokiEmitterV1:
         strategy = strategy.lower()
         if strategy not in LOKI_DEPLOY_STRATEGIES:
             raise
-
         self.urls = urls
-        self.strategy = strategy
-        self._url_indexes = list(range(len(urls)))
         if strategy == LOKI_DEPLOY_STRATEGY_RANDOM:
-            random.shuffle(self._url_indexes)
-
+            random.shuffle(self.urls)
+        self.strategy = strategy
         self.handler = handler
         self.queue: SimpleQueue = queue
         self.api = api
         self.thread = None
         self.thread_stop = Event()
+
+    @property
+    def entrypoint(self):
+        return self.urls[0]
+
+    def rotate_entrypoints(self):
+        self.urls.append(self.urls.pop(0))
 
     def prepare_payload(self, records: [LogRecord]):
         data = []
@@ -79,14 +83,16 @@ class LokiEmitterV1:
         :param records: List[LogRecord]
         """
         payload = self.prepare_payload(records)
-        for ix in self._url_indexes:
-            status_code, msg = self.api.send_json(self.urls[ix], payload)
+        status_code = ''
+        for _ in range(len(self.urls)):
+            status_code, msg = self.api.send_json(self.entrypoint, payload)
             if status_code == self.success_response_code:
                 if self.strategy != LOKI_DEPLOY_STRATEGY_ALL:
                     return
             elif status_code == self.timeout_response_code:
                 sys.stderr.write(f'loggate: The delivery logs to '
-                                 f'"{self.urls[ix]}" failed.\n')
+                                 f'"{self.entrypoint}" failed.\n')
+            self.rotate_entrypoints()
 
         if status_code in [self.success_response_code,
                            self.timeout_response_code]:
@@ -102,16 +108,18 @@ class LokiEmitterV1:
         :param records: List[LogRecord]
         """
         payload = self.prepare_payload(records)
-        for ix in self._url_indexes:
+        status_code = ''
+        for _ in range(len(self.urls)):
             status_code, msg = await self.api.send_json(
-                self.urls[ix], payload
+                self.entrypoint, payload
             )
             if status_code == self.success_response_code:
                 if self.strategy != LOKI_DEPLOY_STRATEGY_ALL:
                     return
             elif status_code == self.timeout_response_code:
                 sys.stderr.write(f'loggate: The delivery logs to '
-                                 f'"{self.urls[ix]}" failed.\n')
+                                 f'"{self.entrypoint}" failed.\n')
+            self.rotate_entrypoints()
 
         if status_code in [self.success_response_code,
                            self.timeout_response_code]:

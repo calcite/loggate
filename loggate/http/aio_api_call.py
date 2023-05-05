@@ -2,6 +2,7 @@ import base64
 import ssl
 
 import aiohttp
+import aiohttp.client_exceptions
 
 from typing import Optional, Tuple
 
@@ -16,7 +17,7 @@ class AIOApiCall(HttpApiCallInterface):
 
     def __init__(self, auth: Optional[Tuple[str, str]] = None,
                  timeout: int = None, ssl_verify=True):
-        self.__timeout = timeout = aiohttp.ClientTimeout(
+        self.__timeout = aiohttp.ClientTimeout(
             total=int(timeout) if timeout else 5
         )
 
@@ -46,5 +47,8 @@ class AIOApiCall(HttpApiCallInterface):
                 fce = session.get
             else:
                 return 0, "The method is not supported"
-            async with fce(url, json=data, ssl=self.ctx) as resp:
-                return resp.status, await resp.text()
+            try:
+                async with fce(url, json=data, ssl=self.ctx) as resp:
+                    return resp.status, await resp.text()
+            except aiohttp.client_exceptions.ClientError as ex:
+                return 1000, str(ex)
