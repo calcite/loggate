@@ -214,6 +214,12 @@ class Manager(logging.Manager):
         """
         self.__profiles = profiles
 
+    def update_profiles(self, profile_patches: dict):
+        self.__profiles.update(profile_patches)
+
+    def get_profiles(self) -> dict:
+        return copy.deepcopy(self.__profiles)
+
     def __cleanup(self, disable_existing_loggers=False):
         logging._acquireLock()
         try:
@@ -227,6 +233,11 @@ class Manager(logging.Manager):
             if disable_existing_loggers:
                 self.loggerDict = {}
             else:
+                root = Logger.get_root()
+                root.setLevel(logging.NOTSET)
+                root.propagate = True
+                root.disabled = False
+                root.handlers = []
                 for logger in self.loggerDict.values():
                     if not isinstance(logger, logging.PlaceHolder):
                         logger.setLevel(logging.NOTSET)
@@ -235,8 +246,6 @@ class Manager(logging.Manager):
                         logger.handlers = []
         finally:
             logging._releaseLock()
-        # self.loggerDict.clear()
-        # self.root = Logger.get_root(recreate=True)
 
     def __create_handler_from_schema(self, attrs: dict):
         _class = attrs.pop('class', 'logging.Handler')
@@ -292,7 +301,6 @@ class Manager(logging.Manager):
         """
         Switch login profile
         :param profile_name: str - profile name
-        :param cleanup: bool - remove previous configuration
         """
         profile = self.__profiles.get(profile_name)
         if not profile:
@@ -301,9 +309,9 @@ class Manager(logging.Manager):
         profile = copy.deepcopy(profile)
         parent_profile_name = profile.get('inherited')
         if parent_profile_name:
-            self.activate_profile(parent_profile_name, False)
-
-        self.__cleanup(profile.get('disable_existing_loggers', False))
+            self.activate_profile(parent_profile_name)
+        else:
+            self.__cleanup(profile.get('disable_existing_loggers', False))
         # Filters
         for name, attrs in profile.get('filters', {}).items():
             _class = attrs.pop('class', 'logging.Filter')
