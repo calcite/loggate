@@ -6,6 +6,7 @@ on:
     paths:
       - '**.py'
       - '**.yml'
+      - '**.toml'
     branches:
       - '**'
 #  pull_request:
