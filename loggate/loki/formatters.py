@@ -12,7 +12,7 @@ class LokiLogFormatter(logging.Formatter):
         if isinstance(val, str):
             return val
         elif isinstance(val, bytes):
-            return val.decode('utf-8')
+            return val.decode('utf-8', errors='replace')
         else:
             return str(val)
 
@@ -24,7 +24,7 @@ class LokiLogFormatter(logging.Formatter):
             record.msg = record.msg.get('msg', '')
         if isinstance(record.msg, bytes):
             # convert bytes to string
-            record.msg = record.msg.decode('utf-8').strip()
+            record.msg = record.msg.decode('utf-8', errors='replace').strip()
         res['msg'] = record.getMessage()
         loki_tags = []
         if handler:

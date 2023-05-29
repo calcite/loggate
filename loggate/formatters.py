@@ -68,7 +68,7 @@ class LogColorFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         if isinstance(record.msg, bytes):
             # convert bytes to string
-            record.msg = record.msg.decode('utf-8').strip()
+            record.msg = record.msg.decode('utf-8', errors='replace').strip()
         record.__dict__.update(self.COLORS)
         record.LEVEL_COLOR = \
             self.COLORS.get(f'COLOR_{record.levelname.upper()}', '')
