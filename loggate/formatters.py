@@ -78,9 +78,9 @@ class LogColorFormatter(logging.Formatter):
             record.asctime = self.formatTime(record, self.datefmt)
         s = self.formatMessage(record)
         if hasattr(record, 'meta') and record.meta:
-            s += f'{self.COLORS["COLOR_METADATA"]}\n' \
-                 f'{self.INDENTATION_METADATA}' \
-                 f'{record.meta}{self.COLORS["COLOR_RESET"]}'
+            s += (f'{self.COLORS["COLOR_METADATA"]}\n'
+                  f'{self.INDENTATION_METADATA}'
+                  f'{record.meta}{self.COLORS["COLOR_RESET"]}')
         if record.exc_info:
             # Cache the traceback text to avoid converting it multiple times
             # (it's constant anyway)
@@ -95,8 +95,8 @@ class LogColorFormatter(logging.Formatter):
 
             trace = record.exc_text.replace('\n',
                                             f'\n{self.INDENTATION_TRACEBACK}')
-            s += f'{self.INDENTATION_TRACEBACK}{_trace_color}' \
-                 f'{trace}{self.COLORS["COLOR_RESET"]}'
+            s += (f'{self.INDENTATION_TRACEBACK}{_trace_color}'
+                  f'{trace}{self.COLORS["COLOR_RESET"]}')
         if record.stack_info:
             if s[-1:] != "\n":
                 s = s + "\n"

@@ -1,5 +1,5 @@
 from logging import Handler
-from queue import SimpleQueue
+from loggate.loki.confirmation_queue import ConfirmatrionQueue
 from typing import Dict, Any
 
 from .formatters import LokiLogFormatter
@@ -19,7 +19,7 @@ class LokiHandlerBase(Handler):
     logger_tag = 'logger'
 
     def __init__(self, meta: dict = None, loki_tags=None, send_interval=1,
-                 max_records_in_one_request=100):
+                 max_records_in_one_request=0, max_queue_size=0):
         """
         Create new Loki logging handler.
 
@@ -28,11 +28,16 @@ class LokiHandlerBase(Handler):
                   loki tags.
         """
         super(LokiHandlerBase, self).__init__()
-        self.queue = SimpleQueue()
+        self.queue = ConfirmatrionQueue(max_queue_size)
         self.meta = meta
         self.loki_tags = loki_tags if loki_tags else self.DEFAULT_LOKI_TAGS
         self.send_interval = send_interval
-        self.max_records_in_one_request = max_records_in_one_request
+        self.max_records_in_one_request = 100
+        if max_records_in_one_request > 0:
+            self.max_records_in_one_request = max_records_in_one_request
+        if max_queue_size <= self.max_records_in_one_request:
+            self.max_records_in_one_request = max(1, max_queue_size - 1)
+        self.shown_message_about_full_queue = 0
 
     def format(self, record):
         fmt = self.formatter if self.formatter else _defaultFormatter
@@ -59,7 +64,30 @@ class LokiHandlerBase(Handler):
         Save record to the queue.
         """
         try:
-            self.queue.put_nowait(record)
+            privileged = getattr(record, 'meta', {}).get('privileged', False)
+            res = self.queue.put_nowait(record, privileged=privileged)
+            if res and not privileged:
+                # The queue is not full
+                self.shown_message_about_full_queue = 0
+            elif not res:
+                from loggate.logger import getLogger
+                if not privileged and self.shown_message_about_full_queue == 0:
+                    # The queue is full, but still accept privileged messages
+                    self.shown_message_about_full_queue = 1
+                    getLogger('loggate.loki').error(
+                        f"Loki Queue is full ({self.queue.qsize()}). "
+                        f"All next non-privileged log records will be dropped.",
+                        meta={'privileged': True}
+                    )
+                elif privileged and self.shown_message_about_full_queue != 2:
+                    # The queue is really full, we don't accept any messages.
+                    self.shown_message_about_full_queue = 2
+                    getLogger('loggate.loki').critical(
+                        f"Loki Queue is full ({self.queue.qsize()}). "
+                        f"Any next log records will be dropped.",
+                        meta={'privileged': True}
+                    )
+
         except Exception:
             self.handleError(record)
 
@@ -73,7 +101,8 @@ class LokiHandler(LokiHandlerBase):
     """
 
     def __init__(self, urls: [str], strategy: str = None, meta: dict = None,
-                 auth=None, loki_tags=None, timeout=None, ssl_verify=True):
+                 auth=None, loki_tags=None, timeout=None, ssl_verify=True,
+                 send_retry=None, max_queue_size=0):
         """
         Create new Loki logging handler.
 
@@ -87,12 +116,25 @@ class LokiHandler(LokiHandlerBase):
         :param loki_tags: The list of names metadata, which will be converted to
                   loki tags.
         :param timeout: connection timeout to loki server
+        :param send_retry: list of waiting seconds
+               to retry sending loki messages
+        :param max_queue_size: max queue size
 
         """
-        super(LokiThreadHandler, self).__init__(meta, loki_tags)
+        super(LokiHandler, self).__init__(
+            meta,
+            loki_tags,
+            max_queue_size=max_queue_size
+        )
         api = SimpleApiCall(auth=auth, timeout=timeout, ssl_verify=ssl_verify)
-        self.emitter = LokiEmitterV1(self, urls=urls, api=api, queue=self.queue,
-                                     strategy=strategy)
+        self.emitter = LokiEmitterV1(
+            self,
+            urls=urls,
+            api=api,
+            queue=self.queue,
+            strategy=strategy,
+            send_retry=send_retry
+        )
 
     def emit(self, record):
         """
@@ -113,7 +155,8 @@ class LokiThreadHandler(LokiHandlerBase):
 
     def __init__(self, urls: [str], strategy: str = None, meta: dict = None,
                  auth=None, loki_tags=None, timeout=None, ssl_verify=True,
-                 send_interval=1, max_records_in_one_request=100):
+                 send_interval=1, max_records_in_one_request=0,
+                 send_retry=None, max_queue_size=0):
         """
         Create new Loki logging handler.
 
@@ -132,13 +175,26 @@ class LokiThreadHandler(LokiHandlerBase):
                number messages is less than max_records_in_one_request
         :param max_records_in_one_request: maximal number of log messages
                in the one send
+        :param send_retry: list of waiting seconds
+               to retry sending loki messages
+        :param max_queue_size: max queue size
         """
         super(LokiThreadHandler, self).__init__(
-            meta, loki_tags, send_interval, max_records_in_one_request
+            meta=meta,
+            loki_tags=loki_tags,
+            send_interval=send_interval,
+            max_records_in_one_request=max_records_in_one_request,
+            max_queue_size=max_queue_size
         )
         api = SimpleApiCall(auth=auth, timeout=timeout, ssl_verify=ssl_verify)
-        self.emitter = LokiEmitterV1(self, urls=urls, api=api, queue=self.queue,
-                                     strategy=strategy)
+        self.emitter = LokiEmitterV1(
+            self,
+            urls=urls,
+            api=api,
+            queue=self.queue,
+            strategy=strategy,
+            send_retry=send_retry
+        )
         self.emitter.start()
 
     def close(self) -> None:
@@ -149,7 +205,8 @@ class LokiThreadHandler(LokiHandlerBase):
 class LokiAsyncioHandler(LokiHandlerBase):
     def __init__(self, urls: [str], strategy: str = None, meta: dict = None,
                  auth=None, loki_tags=None, timeout=None, ssl_verify=True,
-                 send_interval=1, max_records_in_one_request=100):
+                 send_interval=1, max_records_in_one_request=0,
+                 send_retry=None, max_queue_size=0):
         """
             Create new Loki logging handler.
 
@@ -168,9 +225,16 @@ class LokiAsyncioHandler(LokiHandlerBase):
                    number messages is less than max_records_in_one_request
             :param max_records_in_one_request: maximal number of log messages
                    in the one send
+            :param send_retry: list of waiting seconds
+                to retry sending loki messages
+            :param max_queue_size: max queue size
         """
         super(LokiAsyncioHandler, self).__init__(
-            meta, loki_tags, send_interval, max_records_in_one_request
+            meta=meta,
+            loki_tags=loki_tags,
+            send_interval=send_interval,
+            max_records_in_one_request=max_records_in_one_request,
+            max_queue_size=max_queue_size,
         )
         try:
             from ..http.aio_api_call import AIOApiCall
@@ -178,8 +242,14 @@ class LokiAsyncioHandler(LokiHandlerBase):
         except ImportError:
             api = SimpleApiCall(auth=auth, timeout=timeout,
                                 ssl_verify=ssl_verify)
-        self.emitter = LokiEmitterV1(self, urls=urls, api=api, queue=self.queue,
-                                     strategy=strategy)
+        self.emitter = LokiEmitterV1(
+            self,
+            urls=urls,
+            api=api,
+            queue=self.queue,
+            strategy=strategy,
+            send_retry=send_retry
+        )
         self.emitter.asyncio_start()
 
     def close(self) -> None:

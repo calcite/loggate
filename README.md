@@ -88,6 +88,8 @@ profiles:
         # This is a loki handler
         class: loggate.loki.LokiThreadHandler  # for asyncio use loggate.loki.LokiHandler       
         formatter: loki
+        max_queue_size: 1000        # Default is 0 = unlimit
+        # send_retry:  [5, 5, 10, 10, 30, 30, 60, 60, 120]
         urls:
           - "http://loki1:3100/loki/api/v1/push"
           - "http://loki2:3100/loki/api/v1/push"
@@ -95,7 +97,7 @@ profiles:
         meta:
           # loggate handlers accept metadata as well. Standard logging handlers do not!
           stage: dev
-          ip: 192.168.1.10                
+          ip: 192.168.1.10
                   
 
     loggers:
@@ -186,6 +188,8 @@ this only for tiny scripts where other ways have a big overhead.
 - `auth` - The Loki authentication, the list with two items (`username`, `password`).
 - `timeout` - Timeout for one delivery try (default: 5s).
 - `ssl_verify` - Enable ssl verify (default: True).
+- `max_queue_size` - Size of sending queue. The default is 0 = unlimited. Privileged messages have got a limit 110% of `max_queue_size`.
+- `send_retry` - Comma separated list of seconds for resend. The last item of this list is used as default for all other sending.
 - `loki_tags` - the list of metadata keys, which are sent to Loki server as label (defailt: [`logger`, `level`]).
 - `meta` - Metadata (dict), which are sent only by this handler.  
 

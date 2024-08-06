@@ -1,14 +1,14 @@
 import asyncio
+import time
 
 import random
-from multiprocessing import SimpleQueue
-from queue import Empty
 from threading import Thread, Event
 
 import sys
 
 from loggate.http import HttpApiCallInterface
 from loggate.logger import LoggingException, LogRecord
+from loggate.loki.confirmation_queue import ConfirmatrionQueue
 
 LOKI_DEPLOY_STRATEGY_ALL = 'all'
 LOKI_DEPLOY_STRATEGY_RANDOM = 'random'
@@ -34,14 +34,25 @@ class LokiEmitterV1:
     success_response_code = 204
     timeout_response_code = 1000
 
-    def __init__(self, handler, urls, api: HttpApiCallInterface, queue,
-                 strategy: str = None):
+    def __get_new_generator(self):
+        def generator():
+            for value in self.send_retry:
+                yield value
+
+            while True:
+                yield self.send_retry[-1]
+        return generator()
+
+    def __init__(self, handler, urls, api: HttpApiCallInterface,
+                 queue: ConfirmatrionQueue, strategy: str = None,
+                 send_retry=None):
         """
         Loki Handler
         :param handler: LokiHandler
         :param urls: [str]|str loki entrypoints
                      (e.g. [http://127.0.0.1/loki/api/v1/push])
         :param strategy: str ('random', 'fallback', 'all')
+        :param send_retry: list|str interval of send retry (in seconds)
         """
         if isinstance(urls, str):
             urls = [urls]
@@ -55,8 +66,14 @@ class LokiEmitterV1:
             random.shuffle(self.urls)
         self.strategy = strategy
         self.handler = handler
-        self.queue: SimpleQueue = queue
+        self.queue: ConfirmatrionQueue = queue
         self.api = api
+        if send_retry is None:
+            self.send_retry = [5, 5, 10, 10, 30, 30, 60, 60, 120]
+        elif isinstance(send_retry, str):
+            self.send_retry = [int(it) for it in send_retry.split(',')]
+        else:
+            self.send_retry = send_retry
         self.thread = None
         self.thread_stop = Event()
 
@@ -117,8 +134,9 @@ class LokiEmitterV1:
                 if self.strategy != LOKI_DEPLOY_STRATEGY_ALL:
                     return
             elif status_code == self.timeout_response_code:
-                sys.stderr.write(f'loggate: The delivery logs to '
-                                 f'"{self.entrypoint}" failed.\n')
+                pass
+                # sys.stderr.write(f'loggate: The delivery logs to '
+                #                  f'"{self.entrypoint}" failed.\n')
             self.rotate_entrypoints()
 
         if status_code in [self.success_response_code,
@@ -137,48 +155,80 @@ class LokiEmitterV1:
 
     def start(self):
         def process():
+            wait_gen = None
             while not self.thread_stop.is_set():
-                records = []
-                for _ in range(self.handler.max_records_in_one_request):
-                    try:
-                        records.append(
-                            self.queue.get(
-                                block=True,
-                                timeout=self.handler.send_interval))
-                    except Empty:
-                        break
+                records = self.queue.gets(
+                    self.handler.max_records_in_one_request,
+                    block=True,
+                    timeout=self.handler.send_interval
+                )
                 if records:
                     try:
                         self.emit(records)
+                        self.queue.confirm()
+                        wait_gen = None
                     except LokiServerError:
-                        self.handler.handleError(records[0])
+                        if not wait_gen:
+                            wait_gen = self.__get_new_generator()
+                        wait_sec = next(wait_gen)
+                        from loggate.logger import getLogger
+                        getLogger('loggate.loki').warning(
+                            f"Sending of the log messages failed. "
+                            f"We try it again in %s seconds. "
+                            f"Queue size is {self.queue.qsize()} / %s",
+                            wait_sec,
+                            self.queue.max_size,
+                            meta={'privileged': True}
+                        )
+                        time.sleep(wait_sec)
                     except Exception as ex:
+                        from loggate.logger import getLogger
+                        getLogger('loggate.loki').exception(
+                            ex,
+                            meta={'privileged': True}
+                        )
                         if sys.stderr:
-                            sys.stderr.write(f"[CRITICAL LOKI ERROR]\n{ex}\n")
+                            sys.stderr.write(f"[LOKI ERROR]\n{ex}\n")
+                        # If there are problematic message we drop it.
+                        self.queue.confirm()
 
         self.thread = Thread(target=process, name="loggate", daemon=True)
         self.thread.start()
 
     def asyncio_start(self):
         async def process(is_full_asyncio):
+            wait_gen = None
             while not self.thread_stop.is_set():
-                records = []
-                for _ in range(self.handler.max_records_in_one_request):
-                    try:
-                        records.append(self.queue.get(block=False))
-                    except Empty:
-                        break
+                records = self.queue.gets(
+                    self.handler.max_records_in_one_request,
+                    block=False,
+                )
                 if records:
                     try:
                         if is_full_asyncio:
                             await self.emit_async(records)
                         else:
                             self.emit(records)
+                        self.queue.confirm()
                     except LokiServerError:
-                        self.handler.handleError(records[0])
+                        if not wait_gen:
+                            wait_gen = self.__get_new_generator()
+                        wait_sec = next(wait_gen)
+                        from loggate.logger import getLogger
+                        getLogger('loggate.loki').warning(
+                            f"Sending of the log messages failed. "
+                            f"We try it again in %s seconds. "
+                            f"Queue size is {self.queue.qsize()} / %s",
+                            wait_sec,
+                            self.queue.max_size,
+                            meta={'privileged': True}
+                        )
+                        await asyncio.sleep(wait_sec)
                     except Exception as ex:
                         if sys.stderr:
-                            sys.stderr.write(f"[CRITICAL LOKI ERROR]\n{ex}\n")
+                            sys.stderr.write(f"[LOKI ERROR]\n{ex}\n")
+                        # If there are problematic message we drop it.
+                        self.queue.confirm()
                 else:
                     await asyncio.sleep(self.handler.send_interval)
         is_full_asyncio = asyncio.iscoroutinefunction(self.api.send_json)
