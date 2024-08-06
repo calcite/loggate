@@ -27,7 +27,7 @@ class LokiHandlerBase(Handler):
         :param loki_tags: The list of names metadata, which will be converted to
                   loki tags.
         """
-        super(LokiHandlerBase, self).__init__()
+        super().__init__()
         self.queue = ConfirmatrionQueue(max_queue_size)
         self.meta = meta
         self.loki_tags = loki_tags if loki_tags else self.DEFAULT_LOKI_TAGS
@@ -87,7 +87,6 @@ class LokiHandlerBase(Handler):
                         f"Any next log records will be dropped.",
                         meta={'privileged': True}
                     )
-
         except Exception:
             self.handleError(record)
 
@@ -121,7 +120,7 @@ class LokiHandler(LokiHandlerBase):
         :param max_queue_size: max queue size
 
         """
-        super(LokiHandler, self).__init__(
+        super().__init__(
             meta,
             loki_tags,
             max_queue_size=max_queue_size
@@ -179,7 +178,7 @@ class LokiThreadHandler(LokiHandlerBase):
                to retry sending loki messages
         :param max_queue_size: max queue size
         """
-        super(LokiThreadHandler, self).__init__(
+        super().__init__(
             meta=meta,
             loki_tags=loki_tags,
             send_interval=send_interval,
@@ -199,7 +198,7 @@ class LokiThreadHandler(LokiHandlerBase):
 
     def close(self) -> None:
         self.emitter.close()
-        super(LokiThreadHandler, self).close()
+        super().close()
 
 
 class LokiAsyncioHandler(LokiHandlerBase):
@@ -229,7 +228,7 @@ class LokiAsyncioHandler(LokiHandlerBase):
                 to retry sending loki messages
             :param max_queue_size: max queue size
         """
-        super(LokiAsyncioHandler, self).__init__(
+        super().__init__(
             meta=meta,
             loki_tags=loki_tags,
             send_interval=send_interval,
@@ -254,4 +253,4 @@ class LokiAsyncioHandler(LokiHandlerBase):
 
     def close(self) -> None:
         self.emitter.close()
-        super(LokiAsyncioHandler, self).close()
+        super().close()

@@ -158,7 +158,7 @@ class LokiEmitterV1:
             wait_gen = None
             while not self.thread_stop.is_set():
                 records = self.queue.gets(
-                    self.handler.max_records_in_one_request,
+                    number=self.handler.max_records_in_one_request,
                     block=True,
                     timeout=self.handler.send_interval
                 )
