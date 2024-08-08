@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "loggate"
-version = "1.10.0"
+version = "1.11.0"
 license = "MIT"
 readme = "README.md"
 description = "The complex logging system."
