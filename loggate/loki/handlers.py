@@ -35,7 +35,7 @@ class LokiHandlerBase(Handler):
         self.max_records_in_one_request = 100
         if max_records_in_one_request > 0:
             self.max_records_in_one_request = max_records_in_one_request
-        if max_queue_size <= self.max_records_in_one_request:
+        if max_queue_size > 0 and max_queue_size <= self.max_records_in_one_request:
             self.max_records_in_one_request = max(1, max_queue_size - 1)
         self.shown_message_about_full_queue = 0
 

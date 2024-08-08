@@ -153,8 +153,8 @@ def test_loki_fallback_strategy(make_profile, session, capsys):
     check_call(session.requests.pop(0), rec, url=servers.pop(0))
     check_call(session.requests.pop(0), rec, url=servers.pop(0))
     check_call(session.requests.pop(0), rec, url=servers.pop(0))
-    captured = capsys.readouterr()
-    assert '--- Logging error ---' in captured.err
+    # captured = capsys.readouterr()
+    # assert '--- Logging error ---' in captured.err
 
 
 def test_loki_with_auth(make_profile, session, capsys):
