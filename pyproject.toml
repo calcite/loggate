@@ -21,7 +21,7 @@ aiohttp = { version = "*", optional = true}
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.3.1"
-PyYAML = "^6.0.2"
+PyYAML = "^6.0.0"
 pytest-asyncio = "^0.21.0"
 
 [tool.poetry.extras]
