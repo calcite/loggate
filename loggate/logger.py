@@ -221,7 +221,7 @@ class Manager(logging.Manager):
         return copy.deepcopy(self.__profiles)
 
     def __cleanup(self, disable_existing_loggers=False):
-        logging._acquireLock()
+        logging._lock.acquire()
         try:
             self.meta = {}
             self.__filters = {}
@@ -245,7 +245,7 @@ class Manager(logging.Manager):
                         logger.disabled = False
                         logger.handlers = []
         finally:
-            logging._releaseLock()
+            logging._lock.release()
 
     def __create_handler_from_schema(self, attrs: dict):
         _class = attrs.pop('class', 'logging.Handler')

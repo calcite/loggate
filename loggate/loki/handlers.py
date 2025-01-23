@@ -1,6 +1,6 @@
 from logging import Handler
 from loggate.loki.confirmation_queue import ConfirmatrionQueue
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from .formatters import LokiLogFormatter
 from .emitters import LokiEmitterV1
@@ -76,17 +76,25 @@ class LokiHandlerBase(Handler):
                     # The queue is full, but still accept privileged messages
                     self.shown_message_about_full_queue = 1
                     getLogger('loggate.loki').error(
-                        f"Loki Queue is full ({self.queue.qsize()}). "
-                        f"All next non-privileged log records will be dropped.",
-                        meta={'privileged': True}
+                        "Loki Queue is full. All next non-privileged log "
+                        "records will be dropped.",
+                        meta={
+                            'privileged': True,
+                            'max_size': self.queue.max_size,
+                            'queue_size': self.queue.qsize()
+                        }
                     )
                 elif privileged and self.shown_message_about_full_queue != 2:
                     # The queue is really full, we don't accept any messages.
                     self.shown_message_about_full_queue = 2
                     getLogger('loggate.loki').critical(
-                        f"Loki Queue is full ({self.queue.qsize()}). "
-                        f"Any next log records will be dropped.",
-                        meta={'privileged': True}
+                        "Loki Queue is full. Any next log records will be "
+                        "dropped.",
+                        meta={
+                            'privileged': True,
+                            'max_size': self.queue.max_size,
+                            'queue_size': self.queue.qsize()
+                        }
                     )
         except Exception:
             self.handleError(record)
@@ -100,9 +108,10 @@ class LokiHandler(LokiHandlerBase):
      this only for tiny scripts where other ways have a big overhead.
     """
 
-    def __init__(self, urls: [str], strategy: str = None, meta: dict = None,
-                 auth=None, loki_tags=None, timeout=None, ssl_verify=True,
-                 send_retry=None, max_queue_size=0):
+    def __init__(self, urls: List[str], strategy: str = None,
+                 meta: dict = None, auth=None, loki_tags=None,
+                 timeout=None, ssl_verify=True, send_retry=None,
+                 max_queue_size=0):
         """
         Create new Loki logging handler.
 
@@ -153,10 +162,11 @@ class LokiThreadHandler(LokiHandlerBase):
     This type of handler we should use as default.
     """
 
-    def __init__(self, urls: [str], strategy: str = None, meta: dict = None,
-                 auth=None, loki_tags=None, timeout=None, ssl_verify=True,
-                 send_interval=1, max_records_in_one_request=0,
-                 send_retry=None, max_queue_size=0):
+    def __init__(self, urls: List[str], strategy: str = None,
+                 meta: dict = None, auth=None, loki_tags=None,
+                 timeout=None, ssl_verify=True, send_interval=1,
+                 max_records_in_one_request=0, send_retry=None,
+                 max_queue_size=0):
         """
         Create new Loki logging handler.
 
@@ -203,10 +213,11 @@ class LokiThreadHandler(LokiHandlerBase):
 
 
 class LokiAsyncioHandler(LokiHandlerBase):
-    def __init__(self, urls: [str], strategy: str = None, meta: dict = None,
-                 auth=None, loki_tags=None, timeout=None, ssl_verify=True,
-                 send_interval=1, max_records_in_one_request=0,
-                 send_retry=None, max_queue_size=0):
+    def __init__(self, urls: List[str], strategy: str = None,
+                 meta: dict = None, auth=None, loki_tags=None,
+                 timeout=None, ssl_verify=True, send_interval=1,
+                 max_records_in_one_request=0, send_retry=None,
+                 max_queue_size=0):
         """
             Create new Loki logging handler.
 

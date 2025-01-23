@@ -5,6 +5,7 @@ import random
 from threading import Thread, Event
 
 import sys
+from typing import List
 
 from loggate.http import HttpApiCallInterface
 from loggate.logger import LoggingException, LogRecord
@@ -84,7 +85,7 @@ class LokiEmitterV1:
     def rotate_entrypoints(self):
         self.urls.append(self.urls.pop(0))
 
-    def prepare_payload(self, records: [LogRecord]):
+    def prepare_payload(self, records: List[LogRecord]):
         data = []
         for record in records:
             data.append({
@@ -173,12 +174,12 @@ class LokiEmitterV1:
                         wait_sec = next(wait_gen)
                         from loggate.logger import getLogger
                         getLogger('loggate.loki').warning(
-                            f"Sending of the log messages failed. "
-                            f"We try it again in %s seconds. "
-                            f"Queue size is {self.queue.qsize()} / %s",
-                            wait_sec,
-                            self.queue.max_size,
-                            meta={'privileged': True}
+                            "Sending of the log messages failed.",
+                            meta={
+                                'privileged': True,
+                                'max_size': self.queue.max_size,
+                                'queue_size': self.queue.qsize()
+                            }
                         )
                         time.sleep(wait_sec)
                     except Exception as ex:
@@ -216,12 +217,12 @@ class LokiEmitterV1:
                         wait_sec = next(wait_gen)
                         from loggate.logger import getLogger
                         getLogger('loggate.loki').warning(
-                            f"Sending of the log messages failed. "
-                            f"We try it again in %s seconds. "
-                            f"Queue size is {self.queue.qsize()} / %s",
-                            wait_sec,
-                            self.queue.max_size,
-                            meta={'privileged': True}
+                            "Sending of the log messages failed.",
+                            meta={
+                                'privileged': True,
+                                'max_size': self.queue.max_size,
+                                'queue_size': self.queue.qsize()
+                            }
                         )
                         await asyncio.sleep(wait_sec)
                     except Exception as ex:
