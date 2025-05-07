@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 poetry.lock
+pdm.lock
+.pdm-python
+.pdm-build/
 
 # C extensions
 *.so
