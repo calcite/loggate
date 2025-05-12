@@ -101,24 +101,15 @@ class LokiEmitterV1:
         :param records: List[LogRecord]
         """
         payload = self.prepare_payload(records)
-        status_code = ''
-        for _ in range(len(self.urls)):
-            status_code, msg = self.api.send_json(self.entrypoint, payload)
+        res = False
+        for entrypoint in self.urls:
+            status_code, msg = self.api.send_json(entrypoint, payload)
             if status_code == self.success_response_code:
+                res |= True
                 if self.strategy != LOKI_DEPLOY_STRATEGY_ALL:
-                    return
-            elif status_code == self.timeout_response_code:
-                sys.stderr.write(f'loggate: The delivery logs to '
-                                 f'"{self.entrypoint}" failed.\n')
-            self.rotate_entrypoints()
-
-        if status_code in [self.success_response_code,
-                           self.timeout_response_code]:
-            return
-        # TODO: make recovery strategy
-        raise LokiServerError(
-            f"Unexpected Loki API response status code: "
-            f"{status_code} \"{msg}\"")
+                    break
+        if not res:
+            raise LokiServerError(f'Loki API response status code: {status_code} "{msg}"')
 
     async def emit_async(self, records):
         """
@@ -126,27 +117,15 @@ class LokiEmitterV1:
         :param records: List[LogRecord]
         """
         payload = self.prepare_payload(records)
-        status_code = ''
-        for _ in range(len(self.urls)):
-            status_code, msg = await self.api.send_json(
-                self.entrypoint, payload
-            )
+        res = False
+        for entrypoint in self.urls:
+            status_code, msg = await self.api.send_json(entrypoint, payload)
             if status_code == self.success_response_code:
+                res |= True
                 if self.strategy != LOKI_DEPLOY_STRATEGY_ALL:
-                    return
-            elif status_code == self.timeout_response_code:
-                pass
-                # sys.stderr.write(f'loggate: The delivery logs to '
-                #                  f'"{self.entrypoint}" failed.\n')
-            self.rotate_entrypoints()
-
-        if status_code in [self.success_response_code,
-                           self.timeout_response_code]:
-            return
-        # TODO: make recovery strategy
-        raise LokiServerError(
-            f"Unexpected Loki API response status code: "
-            f"{status_code} \"{msg}\"")
+                    break
+        if not res:
+            raise LokiServerError(f'Loki API response status code: {status_code} "{msg}"')
 
     def close(self):
         """Close HTTP session."""
@@ -172,15 +151,15 @@ class LokiEmitterV1:
                         if not wait_gen:
                             wait_gen = self.__get_new_generator()
                         wait_sec = next(wait_gen)
-                        from loggate.logger import getLogger
-                        getLogger('loggate.loki').warning(
-                            "Sending of the log messages failed.",
-                            meta={
-                                'privileged': True,
-                                'max_size': self.queue.max_size,
-                                'queue_size': self.queue.qsize()
-                            }
-                        )
+                        # from loggate.logger import getLogger
+                        # getLogger('loggate.loki').warning(
+                        #     "Sending of the log messages failed.",
+                        #     meta={
+                        #         'privileged': True,
+                        #         'max_size': self.queue.max_size,
+                        #         'queue_size': self.queue.qsize()
+                        #     }
+                        # )
                         time.sleep(wait_sec)
                     except Exception as ex:
                         from loggate.logger import getLogger
@@ -215,15 +194,15 @@ class LokiEmitterV1:
                         if not wait_gen:
                             wait_gen = self.__get_new_generator()
                         wait_sec = next(wait_gen)
-                        from loggate.logger import getLogger
-                        getLogger('loggate.loki').warning(
-                            "Sending of the log messages failed.",
-                            meta={
-                                'privileged': True,
-                                'max_size': self.queue.max_size,
-                                'queue_size': self.queue.qsize()
-                            }
-                        )
+                        # from loggate.logger import getLogger
+                        # getLogger('loggate.loki').warning(
+                        #     "Sending of the log messages failed.",
+                        #     meta={
+                        #         'privileged': True,
+                        #         'max_size': self.queue.max_size,
+                        #         'queue_size': self.queue.qsize()
+                        #     }
+                        # )
                         await asyncio.sleep(wait_sec)
                     except Exception as ex:
                         if sys.stderr:
