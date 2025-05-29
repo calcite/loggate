@@ -69,7 +69,8 @@ class LokiHandlerBase(Handler):
             res = self.queue.put_nowait(record, privileged=privileged)
             if res:
                 # The queue is not full
-                self.shown_message_about_full_queue = 0
+                if self.queue.qsize() < self.queue.max_size:
+                    self.shown_message_about_full_queue = 0
             elif self.queue.max_size > 0:
                 from loggate.logger import getLogger
                 if not privileged and self.shown_message_about_full_queue == 0:
